@@ -264,7 +264,7 @@ export default class StreamingAV {
 		const arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
 
 		//wrist menu root pose
-		const root = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
+		const rootPose = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
 
 		const volumeUpButton = MRE.Actor.Create(this.context, {
 			actor: {
@@ -272,8 +272,8 @@ export default class StreamingAV {
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
-						position: { x: root.pos.x + -0.05, y: root.pos.y + 0.05, z: root.pos.z + -0.075 },
-						rotation: MRE.Quaternion.FromEulerAngles(root.ori.x, root.ori.y, 0),
+						position: { x: rootPose.pos.x + -0.05, y: rootPose.pos.y + 0.05, z: rootPose.pos.z + -0.075 },
+						rotation: MRE.Quaternion.FromEulerAngles(rootPose.ori.x, rootPose.ori.y, 0),
 						scale: { x: 0.3, y: 0.3, z: 0.5 },
 					}
 				},
@@ -290,8 +290,8 @@ export default class StreamingAV {
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
-						position: { x: root.pos.x + -0.05, y: root.pos.y + 0.05, z: root.pos.z + -0.04 },
-						rotation: MRE.Quaternion.FromEulerAngles(root.ori.x, root.ori.y, 1),
+						position: { x: rootPose.pos.x + -0.05, y: rootPose.pos.y + 0.05, z: rootPose.pos.z + -0.04 },
+						rotation: MRE.Quaternion.FromEulerAngles(rootPose.ori.x, rootPose.ori.y, 1),
 						scale: { x: 0.3, y: 0.3, z: 0.5 },
 					}
 				},
@@ -313,8 +313,8 @@ export default class StreamingAV {
 			actor: {
 				name: 'imputPrompt',
 				transform: { local: { 
-					position: { x: root.pos.x + -0.05, y: root.pos.y + 0.05, z: root.pos.z + 0.01 },
-					rotation: MRE.Quaternion.FromEulerAngles(root.ori.x, root.ori.y, 3.141592),
+					position: { x: rootPose.pos.x + -0.05, y: rootPose.pos.y + 0.05, z: rootPose.pos.z + 0.01 },
+					rotation: MRE.Quaternion.FromEulerAngles(rootPose.ori.x, rootPose.ori.y, 3.141592),
 				} },
 				collider: { geometry: { shape: MRE.ColliderType.Box, size: { x: 0.02, y: 0.02, z: 0.01 } } },
 				text: {
