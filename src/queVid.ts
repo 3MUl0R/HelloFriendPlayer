@@ -20,7 +20,7 @@ interface ControlDefinition {
 
 
 export default class StreamingAV {
-	expectedResultDescription = "livestreams audio / video"
+	expectedResultDescription = "livestreams video"
 
     private assets: MRE.AssetContainer
     parentActor: MRE.Actor
@@ -30,10 +30,12 @@ export default class StreamingAV {
     currentStream = 0
     isPlaying = true
     
-    volume = 0.01
+    volume = 0.1
     looping = true
     spread = 0.8
-    rolloffStartDistance = 2.5
+	rolloffStartDistance = 2.5
+
+	controls: ControlDefinition[] = []
 
     
     /**
@@ -79,8 +81,12 @@ export default class StreamingAV {
         this.videoStream = this.assets.createVideoStream(
 			'avStream',
 			{
-				uri: `youtube://5yx6BWlEVcY`
-				// uri: `youtube://KAnHRMfCV0g`
+				uri: 'youtube://5yx6BWlEVcY'
+				// uri: 'youtube://9RTaIpVuTqE'
+				// uri: `youtube://U03lLvhBzOw`
+				// uri: `youtube://kK42LZqO0wA`
+				// uri: `youtube://MejbOFk7H6c`
+				// uri: `https://dl.dropbox.com/s/ufneqctlgqhmpmo/Space-Unicorn-Parry-Gripp-and-Br%20%281%29.mp4?dl=1`
 				
 			}
 		)
@@ -93,7 +99,7 @@ export default class StreamingAV {
         
         //start the new video stream
 		this.currentInstance = this.parentActor.startVideoStream(
-            this.videoStream.id,
+			this.videoStream.id,
 			{
 				volume: this.volume,
 				looping: this.looping,
@@ -105,7 +111,7 @@ export default class StreamingAV {
 
         //define controls for the stream
         //each of these controls will have up/dn adjustment buttons
-		const controls: ControlDefinition[] = [
+		this.controls = [
 			{
 				label: "Playing", realtime: true, action: incr => {
 					if (incr !== 0) {
@@ -156,7 +162,7 @@ export default class StreamingAV {
         ]
         
         //the controls are defined now we have to create them
-		this.createControls(controls, MRE.Actor.Create(this.context, {
+		this.createControls(this.controls, MRE.Actor.Create(this.context, {
 			actor: {
 				name: 'controlsParent',
 				parentId: rootActor.id,
@@ -177,7 +183,7 @@ export default class StreamingAV {
 		const layout = new MRE.PlanarGridLayout(parent)
 
 		let i = 0
-		const realtimeLabels = [] as ControlDefinition[]
+
 		for (const controlDef of controls) {
 			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
 			layout.addCell({
@@ -233,32 +239,20 @@ export default class StreamingAV {
 				})
 			})
 
-			if (controlDef.realtime) { realtimeLabels.push(controlDef) }
-
-			less.setBehavior(MRE.ButtonBehavior).onClick(() => {
-				label.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
-				for (const rt of realtimeLabels) {
-					rt.labelActor.text.contents = `${rt.label}:\n${rt.action(0)}`
-				}
+			less.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
 			})
-			more.setBehavior(MRE.ButtonBehavior).onClick(() => {
-				label.text.contents = `${controlDef.label}:\n${controlDef.action(1)}`
-				for (const rt of realtimeLabels) {
-					rt.labelActor.text.contents = `${rt.label}:\n${rt.action(0)}`
-				}
+
+			more.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(1)}`
 			})
 
 			i++
 		}
+
 		layout.applyLayout()
 
-		setInterval(() => {
-			for (const rt of realtimeLabels) {
-				rt.labelActor.text.contents = `${rt.label}:\n${rt.action(0)}`
-			}
-		}, 250)
 	}
-
 
 	/**
 	 * spawn controls on the users wrist
@@ -306,32 +300,28 @@ export default class StreamingAV {
 		})
 
 		const volumeUpButtonBehavior = volumeUpButton.setBehavior(MRE.ButtonBehavior)
-		volumeUpButtonBehavior.onButton("released", this.volumeUp)
+		volumeUpButtonBehavior.onButton("pressed", this.volumeUp)
 
 		const volumeDnButtonBehavior = volumeDnButton.setBehavior(MRE.ButtonBehavior)
-		volumeDnButtonBehavior.onButton("released", this.volumeDn)
+		volumeDnButtonBehavior.onButton("pressed", this.volumeDn)
 
 	}
 
 
 	/**
 	 * volume up contol
-	 * defined with special syntax for scope
 	 */
 	volumeUp = () => {
-		console.log("volume up clicked")
-		this.volume = this.volume >= 1.0 ? 1.0 : this.volume + .1
-		this.currentInstance.setState({ volume: this.volume })
+		//use the control defined in the contol definition
+		this.controls[1].labelActor.text.contents = `${this.controls[1].label}:\n${this.controls[1].action(1)}`
 	}
 
 	/**
 	 * volume dn contol
-	 * defined with special syntax for scope
 	 */
 	volumeDn = () => {
-		console.log("volume dn clicked")
-		this.volume = this.volume <= 0.0 ? 0.0 : this.volume - .1
-		this.currentInstance.setState({ volume: this.volume })
+		//use the control defined in the contol definition
+		this.controls[1].labelActor.text.contents = `${this.controls[1].label}:\n${this.controls[1].action(-1)}`
 	}
 
 

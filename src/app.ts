@@ -4,7 +4,6 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
-import VideoTest from './videoStream'
 import SoundTest from './musicObjects'
 import QueVid from './queVid'
 
@@ -21,7 +20,6 @@ export default class myApp{
 	public expectedResultDescription = "Sounds. Click buttons to toggle"
 	protected modsOnly = true
 
-	private avStreaming = new VideoTest(this.context, this.baseUrl)
 	private musicObjects = new SoundTest(this.context, this.baseUrl)
 	private queVid = new QueVid(this.context, this.baseUrl)
 
@@ -76,19 +74,9 @@ export default class myApp{
         //do startup work here such as preloading objects or showing a menu
 		this.showHello(menu)
 
-		// this.avStreaming.run(menu)
-
-		// this.musicObjects.run(menu)
+		this.musicObjects.run(menu)
 
 		this.queVid.run(menu)
-
-		// console.log("context: ", this.context)
-
-		// const actorset = this.context.actors
-
-		// actorset.forEach(actor => console.log("actor: ", actor.name))
-
-		//this.queVid.runQueVid(menu)
 		
     }
     

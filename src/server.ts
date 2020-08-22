@@ -25,7 +25,7 @@ function runApp() {
 	const server = new WebHost({
 		baseUrl: (process.env.BASE_URL),
 		baseDir: resolvePath(__dirname, '../public'),
-		port: (process.env.PORT || 80)
+		port: (process.env.PORT)
 	});
 
 	console.log("server info: ", server)
