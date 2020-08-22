@@ -1,0 +1,38 @@
+{
+  "name": "mreaudiokit",
+  "version": "1.0.0",
+  "description": "bare bones new mre app to build from",
+  "main": "built/server.js",
+  "scripts": {
+    "clean": "tsc --build --clean",
+    "build": "tsc --build",
+    "start": "node .",
+    "debug": "nodemon ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@microsoft/mixed-reality-extension-sdk": "^0.20.0",
+    "dotenv": "^8.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4",
+    "typescript": "^4.0.2"
+  },
+  "nodemonConfig": {
+    "restartable": "rs",
+    "ignore": [
+      ".git",
+      "node_modules/**/node_modules"
+    ],
+    "verbose": true,
+    "exec": "tsc --build && node .",
+    "watch": [
+      "src/"
+    ],
+    "env": {
+      "NODE_ENV": "development"
+    },
+    "ext": "js,json,ts"
+  }
+}
