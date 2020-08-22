@@ -21,7 +21,6 @@ export default class SoundTest{
 	private currentsongIndex = 0
 	private musicButton : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
-	private musicAssetArray : Array<MRE.Sound> = []
 	private musicFileNames : Array<string> = []
 
 	prompt : Prompt
@@ -124,8 +123,7 @@ export default class SoundTest{
 
 
 		//read in all of the music files
-		fs.readdirSync('./public/').forEach(file => {
-			this.musicAssetArray.push(this.musicAssets.createSound(file, { uri: `${this.baseUrl}/${file}`}))
+		fs.readdirSync('./public/music/').forEach(file => {
 			this.musicFileNames.push(file)
 		})
 
@@ -139,7 +137,7 @@ export default class SoundTest{
 			this.musicAssets = new MRE.AssetContainer(this.context)
 
 			const fileName = this.musicFileNames[this.currentsongIndex]
-			const currentMusicAsset = this.musicAssets.createSound(fileName, { uri: `${this.baseUrl}/${fileName}`})
+			const currentMusicAsset = this.musicAssets.createSound(fileName, { uri: `${this.baseUrl}/music/${fileName}`})
 
 			//save the next sound into the active instance
 			this.musicSoundInstance = this.musicButton.startSound(
