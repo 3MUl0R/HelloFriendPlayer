@@ -68,7 +68,7 @@ export default class StreamingAV {
 				name: 'video',
 				transform: {
 					local: {
-						position: { x: 1, y: -1, z: -4 },
+						position: { x: -0.5, y: -1, z: -1 },
 						scale: { x: 1, y: 1, z: 1 }
 					}
                 },
@@ -166,7 +166,7 @@ export default class StreamingAV {
 			actor: {
 				name: 'controlsParent',
 				parentId: rootActor.id,
-				transform: { local: { position: { x: 0.6, y: 1, z: -1 } } }
+				transform: { local: { position: { x: 0.6, y: -1, z: -1 } } }
 			}
 		}))
 
