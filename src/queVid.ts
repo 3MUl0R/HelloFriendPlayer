@@ -20,7 +20,6 @@ interface ControlDefinition {
 
 
 export default class StreamingAV {
-	expectedResultDescription = "livestreams video"
 
     private assets: MRE.AssetContainer
     parentActor: MRE.Actor
@@ -36,6 +35,7 @@ export default class StreamingAV {
 	rolloffStartDistance = 2.5
 
 	controls: ControlDefinition[] = []
+	playlist : Array<string> = []
 
     
     /**
@@ -261,14 +261,14 @@ export default class StreamingAV {
 	createUserControls(user: MRE.User) {
 
 		//create the wrist menu button meshes
-		const arrowMesh1 = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
-		const arrowMesh2 = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+		const arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+
 		//wrist menu root pose
 		const root = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
 
 		const volumeUpButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: arrowMesh1.id },
+				appearance: { meshId: arrowMesh.id },
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -286,7 +286,7 @@ export default class StreamingAV {
 
 		const volumeDnButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: arrowMesh2.id },
+				appearance: { meshId: arrowMesh.id },
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -307,6 +307,41 @@ export default class StreamingAV {
 
 		const volumeDnButtonBehavior = volumeDnButton.setBehavior(MRE.ButtonBehavior)
 		volumeDnButtonBehavior.onButton("pressed", this.volumeDn)
+
+
+		const inputPromptButton = MRE.Actor.Create(this.context, {
+			actor: {
+				name: 'imputPrompt',
+				transform: { local: { 
+					position: { x: root.pos.x + -0.05, y: root.pos.y + 0.05, z: root.pos.z + 0.01 },
+					rotation: MRE.Quaternion.FromEulerAngles(root.ori.x, root.ori.y, 3.141592),
+				} },
+				collider: { geometry: { shape: MRE.ColliderType.Box, size: { x: 0.02, y: 0.02, z: 0.01 } } },
+				text: {
+					contents: "Add",
+					height: 0.02,
+					anchor: MRE.TextAnchorLocation.MiddleCenter,
+					justify: MRE.TextJustify.Center
+				},
+				attachment: {
+					attachPoint: "left-hand",
+					userId: user.id
+				}
+			}
+		})
+
+		inputPromptButton.setBehavior(MRE.ButtonBehavior).onButton('pressed', user => {
+			user.prompt("Who's your favorite musician?", true)
+			.then(res => {
+				if (res.submitted) {
+					this.playlist.push(res.text)
+					console.log("current queue: ", this.playlist)
+				}
+			})
+			.catch(err => {
+				console.error(err)
+			})
+		})
 
 	}
 

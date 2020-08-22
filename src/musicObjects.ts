@@ -5,15 +5,18 @@
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import delay from './delay'
+import Prompt from './prompt'
 
 
 export default class SoundTest{
-	public expectedResultDescription = "Sounds. Click buttons to toggle"
+
 	protected modsOnly = true
 	private assets: MRE.AssetContainer
 
 	private _musicState = 0
 	private _dopplerSoundState = 0
+
+	prompt : Prompt
 
 	// Chords for the first few seconds of The Entertainer
 	private chords: number[][] = [
@@ -69,6 +72,8 @@ export default class SoundTest{
      * @param rootActor 
      */
 	public async run(rootActor: MRE.Actor): Promise<boolean> {
+
+		this.prompt = new Prompt(this.context, this.baseUrl)
 		
 		this.assets = new MRE.AssetContainer(this.context)
 		const buttonMesh = this.assets.createSphereMesh('sphere', 0.2, 8, 4)
@@ -218,8 +223,30 @@ export default class SoundTest{
 		}
 		dopplerButtonBehavior.onButton('released', cycleDopplerSoundState)
 
+
+		const promptButton = MRE.Actor.Create(this.context, {
+			actor: {
+				name: 'PromptButton',
+				parentId: rootActor.id,
+				appearance: { meshId: buttonMesh.id },
+				collider: { geometry: { shape: MRE.ColliderType.Auto } },
+				transform: {
+					local: {
+						position: { x: 1.6, y: 1.3, z: -0.2 }
+					}
+				}
+			}
+		})
+		
+        const promptButtonBehavior = promptButton.setBehavior(MRE.ButtonBehavior)
+
+		promptButtonBehavior.onButton('pressed', () => {
+			this.prompt.run(rootActor)
+		})
+
 		return true
 	}
+
 
     /**
 	 * use to generate the key frames of an orbiting animation
