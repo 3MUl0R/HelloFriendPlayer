@@ -260,8 +260,11 @@ export default class StreamingAV {
 	 */
 	createUserControls(user: MRE.User) {
 
+		//create the wrist menu button meshes
 		const arrowMesh1 = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
 		const arrowMesh2 = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+		//wrist menu root pose
+		const root = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
 
 		const volumeUpButton = MRE.Actor.Create(this.context, {
 			actor: {
@@ -269,8 +272,8 @@ export default class StreamingAV {
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
-						position: { x: -0.05, y: 0.05, z: -0.075 },
-						rotation: MRE.Quaternion.FromEulerAngles(Math.PI*.5, -0.53, 0),
+						position: { x: root.pos.x + -0.05, y: root.pos.y + 0.05, z: root.pos.z + -0.075 },
+						rotation: MRE.Quaternion.FromEulerAngles(root.ori.x, root.ori.y, 0),
 						scale: { x: 0.3, y: 0.3, z: 0.5 },
 					}
 				},
@@ -287,8 +290,8 @@ export default class StreamingAV {
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
-						position: { x: -0.05, y: 0.05, z: -0.04 },
-						rotation: MRE.Quaternion.FromEulerAngles(Math.PI*.5, 0.56, 0),
+						position: { x: root.pos.x + -0.05, y: root.pos.y + 0.05, z: root.pos.z + -0.04 },
+						rotation: MRE.Quaternion.FromEulerAngles(root.ori.x, root.ori.y, 1),
 						scale: { x: 0.3, y: 0.3, z: 0.5 },
 					}
 				},
