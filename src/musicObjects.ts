@@ -7,7 +7,6 @@ import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import delay from './delay'
 import Prompt from './prompt'
 import fs from 'fs'
-import { MreArgumentError } from '@microsoft/mixed-reality-extension-sdk'
 
 
 export default class SoundTest{
@@ -68,12 +67,17 @@ export default class SoundTest{
 
     }
 
-
+	/**
+	 * unload all asset containers
+	 */
 	public cleanup() {
 		this.assets.unload()
 		this.cleanUpMusic()
 	}
 	
+	/**
+	 * unload the music asset container
+	 */
 	public cleanUpMusic() {
 		this.musicAssets.unload()
 	}
@@ -84,10 +88,8 @@ export default class SoundTest{
      * @param rootActor 
      */
 	public async run(rootActor: MRE.Actor): Promise<boolean> {
-		console.log("begining to load music")
 
 		this.prompt = new Prompt(this.context, this.baseUrl)
-		
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssets = new MRE.AssetContainer(this.context)
 		const buttonMesh = this.assets.createSphereMesh('sphere', 0.2, 8, 4)
@@ -132,10 +134,11 @@ export default class SoundTest{
 			this.currentsongIndex = this.currentsongIndex > this.musicFileNames.length-2 ? 0 : this.currentsongIndex + 1
 			//if the current sound exists stop it 
 			if (this.musicSoundInstance) this.musicSoundInstance.stop()
-			//unload the current sounds so we don't use all the memory
+			//unload the current music so we don't use all the memory
 			this.cleanUpMusic()
+			//recreate the asset container
 			this.musicAssets = new MRE.AssetContainer(this.context)
-
+			//create the next sound
 			const fileName = this.musicFileNames[this.currentsongIndex]
 			const currentMusicAsset = this.musicAssets.createSound(fileName, { uri: `${this.baseUrl}/music/${fileName}`})
 
@@ -177,7 +180,6 @@ export default class SoundTest{
         
 		musicButtonBehavior.onButton('pressed', cycleMusicState)
 		musicNextButtonBehavior.onButton('pressed', loadNextMusic)
-
 
 
 		const notesButton = MRE.Actor.Create(this.context, {
