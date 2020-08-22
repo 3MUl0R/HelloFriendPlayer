@@ -79,8 +79,8 @@ export default class StreamingAV {
         this.videoStream = this.assets.createVideoStream(
 			'avStream',
 			{
-				// uri: `youtube://5yx6BWlEVcY`
-				uri: `youtube://KAnHRMfCV0g`
+				uri: `youtube://5yx6BWlEVcY`
+				// uri: `youtube://KAnHRMfCV0g`
 				
 			}
 		)
