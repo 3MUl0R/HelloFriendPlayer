@@ -6,6 +6,7 @@
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import SoundTest from './musicObjects'
 import QueVid from './queVid'
+import AudioFileInfo from './types'
 
 
 /**
@@ -20,7 +21,7 @@ export default class myApp{
 	public expectedResultDescription = "Sounds. Click buttons to toggle"
 	protected modsOnly = true
 
-	private musicObjects = new SoundTest(this.context, this.baseUrl)
+	private musicObjects = new SoundTest(this.context, this.baseUrl, this.musicFileInfo)
 	private queVid = new QueVid(this.context, this.baseUrl)
 
 
@@ -29,7 +30,7 @@ export default class myApp{
 	 * @param context The MRE SDK context.
 	 * @param baseUrl The baseUrl to this project's `./public` folder
 	 */
-	constructor(private context: MRE.Context, private baseUrl: string) {
+	constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]) {
         //initialize an assets container 
 		this.assets = new MRE.AssetContainer(context)
 		// Hook the context events we're interested in

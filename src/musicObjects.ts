@@ -7,6 +7,8 @@ import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import delay from './delay'
 import Prompt from './prompt'
 import fs from 'fs'
+import AudioFileInfo from './types'
+import { Collider } from '@microsoft/mixed-reality-extension-sdk'
 
 
 export default class SoundTest{
@@ -20,7 +22,6 @@ export default class SoundTest{
 	private currentsongIndex = 0
 	private musicButton : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
-	private musicFileNames : Array<string> = []
 
 	prompt : Prompt
 
@@ -63,7 +64,7 @@ export default class SoundTest{
      * @param context 
      * @param baseUrl 
      */
-    constructor(private context: MRE.Context, private baseUrl: string){
+    constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]){
 
     }
 
@@ -125,28 +126,41 @@ export default class SoundTest{
 
 
 		//read in all of the music files
-		fs.readdirSync('./public/music/').forEach(file => {
-			this.musicFileNames.push(file)
+		fs.readdirSync('./public/music/').forEach(eachFileName => {
+			// console.log("this.musicFileInfo test: ", this.musicFileInfo)
+			let tempArray = this.musicFileInfo.filter(eachFile => eachFileName.replace('-', ' ').toLowerCase().includes( eachFile.name.toLowerCase() ))
+
+			if (tempArray) {tempArray[0].url = `${this.baseUrl}/music/${eachFileName}`}
+
 		})
+
+		console.log("this.musicFileInfo: ", this.musicFileInfo)
 
 		const loadNextMusic = () => {
 			//increment the song index and roll it over when we get to the end of the list
-			this.currentsongIndex = this.currentsongIndex > this.musicFileNames.length-2 ? 0 : this.currentsongIndex + 1
+			this.currentsongIndex = this.currentsongIndex > this.musicFileInfo.length-2 ? 0 : this.currentsongIndex + 1
+
 			//if the current sound exists stop it 
 			if (this.musicSoundInstance) this.musicSoundInstance.stop()
+
 			//unload the current music so we don't use all the memory
 			this.cleanUpMusic()
+
 			//recreate the asset container
 			this.musicAssets = new MRE.AssetContainer(this.context)
+
 			//create the next sound
-			const fileName = this.musicFileNames[this.currentsongIndex]
-			const currentMusicAsset = this.musicAssets.createSound(fileName, { uri: `${this.baseUrl}/music/${fileName}`})
+			let file = this.musicFileInfo[this.currentsongIndex]
+			console.log("file: ", file)
+			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+
+			setInterval(loadNextMusic, this.musicFileInfo[this.currentsongIndex].duration * 1000 + 2000)			
 
 			//save the next sound into the active instance
 			this.musicSoundInstance = this.musicButton.startSound(
 				currentMusicAsset.id,
 				{
-					volume: 0.2,
+					volume: 0.04,
 					looping: false,
 					doppler: 0.0,
 					spread: 0.7,
