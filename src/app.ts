@@ -36,7 +36,10 @@ export default class myApp{
 		// Hook the context events we're interested in
 		this.context.onStarted(() => this.started())
 
-		this.context.onUserJoined(user => this.queVid.createUserControls(user))
+		this.context.onUserJoined(user => {
+
+			// this.queVid.createUserControls(user)
+		})
 
 		this.context.onUserLeft(user => this.userLeft(user))
 		
@@ -77,7 +80,7 @@ export default class myApp{
 
 		this.musicObjects.run(menu)
 
-		this.queVid.run(menu)
+		// this.queVid.run(menu)
 		
     }
     

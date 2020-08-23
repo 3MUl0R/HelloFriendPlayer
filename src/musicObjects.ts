@@ -11,6 +11,19 @@ import AudioFileInfo from './types'
 import { Collider } from '@microsoft/mixed-reality-extension-sdk'
 
 
+/** Defines an animation control field */
+interface ControlDefinition {
+	/** Decorative label for the control */
+	label: string
+	/** Changes a property, and returns a result string */
+	action: (incr: number) => string
+	/** Whether the control should be updated on a timer */
+	realtime?: boolean
+	/** The actor who's text needs to be updated */
+	labelActor?: MRE.Actor
+}
+
+
 export default class SoundTest{
 
 	protected modsOnly = true
@@ -20,46 +33,17 @@ export default class SoundTest{
 	private autoAdvanceIntervalSeconds = 2
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
-	private _dopplerSoundState = 0
+	private dopplerSoundState = 0
 	private currentsongIndex = 0
 	private musicButton : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
+	controls: ControlDefinition[] = []
+	private volume = 0.04
+	private spread = 0.4
+	private rolloffStartDistance = 2.5
 
 	prompt : Prompt
 
-	// Chords for the first few seconds of The Entertainer
-	private chords: number[][] = [
-		[2 + 12],
-		[4 + 12],
-		[0 + 12],
-		[-3 + 12],
-		[],
-		[-1 + 12],
-		[-5 + 12],
-		[],
-		[2],
-		[4],
-		[0],
-		[-3],
-		[],
-		[-1],
-		[-5],
-		[],
-		[2 - 12],
-		[4 - 12],
-		[0 - 12],
-		[-3 - 12],
-		[],
-		[-1 - 12],
-		[-3 - 12],
-		[-4 - 12],
-		[-5 - 12],
-		[],
-		[],
-		[],
-		[-1, 7]
-    ]
-    
 
     /**
      * create an instance
@@ -87,7 +71,7 @@ export default class SoundTest{
 	
 
     /**
-     * make it happen
+     * Create the player and controls in world
      * @param rootActor 
      */
 	public async run(rootActor: MRE.Actor): Promise<boolean> {
@@ -95,36 +79,7 @@ export default class SoundTest{
 		this.prompt = new Prompt(this.context, this.baseUrl)
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssets = new MRE.AssetContainer(this.context)
-		const buttonMesh = this.assets.createSphereMesh('sphere', 0.2, 8, 4)
 
-		this.musicButton = MRE.Actor.Create(this.context, {
-			actor: {
-				name: 'MusicButton',
-				parentId: rootActor.id,
-				appearance: { meshId: buttonMesh.id },
-				collider: { geometry: { shape: MRE.ColliderType.Auto } },
-				transform: {
-					local: {
-						position: { x: -0.8, y: 1.3, z: -0.2 }
-					}
-				}
-			}
-		})
-		
-		const musicNextButton = MRE.Actor.Create(this.context, {
-			actor: {
-				name: 'MusicNextButton',
-				parentId: rootActor.id,
-				appearance: { meshId: buttonMesh.id },
-				collider: { geometry: { shape: MRE.ColliderType.Auto } },
-				transform: {
-					local: {
-						position: { x: -0.4, y: 1.5, z: -0.2 },
-						scale: { x: 0.4, y: 0.4, z: 0.4 }
-					}
-				}
-			}
-		})
 
 		//watch for the track duration to elapse. this will allow us to advance to the next song
 		const watchForTrackAutoAdvance = () => {
@@ -164,7 +119,7 @@ export default class SoundTest{
 			this.musicSoundInstance = this.musicButton.startSound(
 				currentMusicAsset.id,
 				{
-					volume: 0.04,
+					volume: this.volume,
 					looping: false,
 					doppler: 0.0,
 					spread: 0.4,
@@ -180,10 +135,6 @@ export default class SoundTest{
 		//default to paused
         this.musicSoundInstance.pause()
 		
-		//create the button behaviors
-		const musicButtonBehavior = this.musicButton.setBehavior(MRE.ButtonBehavior)
-        const musicNextButtonBehavior = musicNextButton.setBehavior(MRE.ButtonBehavior)
-		
         //define pause/resume control
 		const cycleMusicState = () => {
 			//toggle the music state
@@ -196,164 +147,82 @@ export default class SoundTest{
 			}
         }
         
-		musicButtonBehavior.onButton('pressed', cycleMusicState)
-		musicNextButtonBehavior.onButton('pressed', loadNextTrack)
-
-
-		const notesButton = MRE.Actor.Create(this.context, {
-			actor: {
-				name: 'NotesButton',
-				parentId: rootActor.id,
-				appearance: { meshId: buttonMesh.id },
-				collider: { geometry: { shape: MRE.ColliderType.Auto } },
-				transform: {
-					local: {
-						position: { x: 0, y: 1.3, z: -0.2 }
-					}
+		//use to adjust the state of the currently playing sound
+		const adjustSoundState = () => {
+			this.musicSoundInstance.setState(
+				{
+					volume: this.volume,
+					looping: false,
+					doppler: 0.0,
+					spread: this.spread,
+					rolloffStartDistance: this.rolloffStartDistance
 				}
-			}
-		})
-
-		const notesAsset = this.assets.createSound(
-			'piano',
-			{ uri: `${this.baseUrl}/Piano_C4.wav` }
-		)
-
-        const notesButtonBehavior = notesButton.setBehavior(MRE.ButtonBehavior)
-        
-		const playNotes = async () => {
-			for (const chord of this.chords) {
-				for (const note of chord) {
-					notesButton.startSound(notesAsset.id, {
-						doppler: 0.0,
-						pitch: note,
-					})
-				}
-				await delay(200)
-			}
-        }
-        
-		notesButtonBehavior.onButton('released', playNotes)
-
-		const dopplerButton = MRE.Actor.Create(this.context, {
-			actor: {
-				name: 'DopplerButton',
-				parentId: rootActor.id,
-				appearance: { meshId: buttonMesh.id },
-				collider: { geometry: { shape: MRE.ColliderType.Auto } },
-				transform: {
-					local: {
-						position: { x: 0.8, y: 1.3, z: -0.2 }
-					}
-				}
-			}
-        })
-        
-		const dopplerMover = MRE.Actor.Create(this.context, {
-			actor: {
-				parentId: dopplerButton.id,
-				name: 'DopplerMover',
-				appearance: { meshId: this.assets.createSphereMesh('doppler', 0.15, 8, 4).id },
-				collider: { geometry: { shape: MRE.ColliderType.Auto } },
-				transform: {
-					local: {
-						position: { x: 0, y: 0, z: 3 }
-					}
-				}
-			}
-        })
-        
-		const spinAnim = await this.assets.createAnimationData(
-			'flyaround',
-			this.generateSpinKeyframes(2.0, MRE.Vector3.Up())
-		).bind({target: dopplerButton}, {wrapMode: MRE.AnimationWrapMode.Loop})
-
-		const dopplerAsset = this.assets.createSound(
-			'truck',
-			{ uri: `${this.baseUrl}/Car_Engine_Loop.wav` }
-        )
-        
-		const dopplerSoundInstance = dopplerMover.startSound(dopplerAsset.id,
-			{
-				volume: 0.5,
-				looping: true,
-				doppler: 5.0,
-				spread: 0.3,
-				rolloffStartDistance: 9.3
-            }
-        )
-
-        dopplerSoundInstance.pause()
-        
-        const dopplerButtonBehavior = dopplerButton.setBehavior(MRE.ButtonBehavior)
-        
-		const cycleDopplerSoundState = () => {
-			if (this._dopplerSoundState === 0) {
-				dopplerSoundInstance.resume()
-				spinAnim.play()
-
-			} else if (this._dopplerSoundState === 1) {
-				spinAnim.stop()
-				dopplerSoundInstance.pause()
-			}
-			this._dopplerSoundState = (this._dopplerSoundState + 1) % 2
+			)
 		}
-		dopplerButtonBehavior.onButton('released', cycleDopplerSoundState)
 
-
-		const promptButton = MRE.Actor.Create(this.context, {
-			actor: {
-				name: 'PromptButton',
-				parentId: rootActor.id,
-				appearance: { meshId: buttonMesh.id },
-				collider: { geometry: { shape: MRE.ColliderType.Auto } },
-				transform: {
-					local: {
-						position: { x: 1.6, y: 1.3, z: -0.2 }
+		//define controls for the stream
+        //each of these controls will have up/dn adjustment buttons
+		this.controls = [
+			{
+				label: "Playing", realtime: true, action: incr => {
+					if (incr !== 0) {
+						if (!this.musicIsPlaying) {
+							cycleMusicState()
+						} else {
+							cycleMusicState()
+						}
 					}
+					return this.musicIsPlaying.toString()
 				}
+			},
+			{
+				label: "Volume", action: incr => {
+					if (incr > 0) {
+						this.volume = this.volume >= 0.99 ? 1.0 : this.volume + .01
+					} else if (incr < 0) {
+						this.volume = this.volume <= 0.01 ? 0.0 : this.volume - .01
+					}
+					adjustSoundState()
+					return Math.floor(this.volume * 100) + "%"
+				}
+			},
+			{
+				label: "Spread", action: incr => {
+					if (incr > 0) {
+						this.spread = this.spread >= 0.9 ? 1.0 : this.spread + .1
+					} else if (incr < 0) {
+						this.spread = this.spread <= 0.1 ? 0.0 : this.spread - .1
+					}
+					adjustSoundState()
+					return Math.floor(this.spread * 100) + "%"
+				}
+			},
+			{
+				label: "Rolloff", action: incr => {
+					if (incr > 0) {
+						this.rolloffStartDistance += .1
+					} else if (incr < 0) {
+						this.rolloffStartDistance = this.rolloffStartDistance <= 0.3 ? 0.2 : this.rolloffStartDistance - .1
+                    }
+					adjustSoundState()
+					return this.rolloffStartDistance.toPrecision(2).toString()
+				}
+			},
+        ]
+        
+        //the controls are defined now we have to create them
+		this.createControls(this.controls, MRE.Actor.Create(this.context, {
+			actor: {
+				name: 'controlsParent',
+				parentId: rootActor.id,
+				transform: { local: { position: { x: 0.6, y: -1, z: -1 } } }
 			}
-		})
-		
-        const promptButtonBehavior = promptButton.setBehavior(MRE.ButtonBehavior)
+		}))
 
-		promptButtonBehavior.onButton('pressed', () => {
-			this.prompt.run(rootActor)
-		})
 
 		return true
 	}
 
-
-    /**
-	 * use to generate the key frames of an orbiting animation
-	 * @param duration 
-	 * @param axis 
-	 * @param start 
-	 */
-	private generateSpinKeyframes(duration: number, axis: MRE.Vector3, start = 0): MRE.AnimationDataLike {
-		return {
-			tracks: [{
-				target: MRE.ActorPath("target").transform.local.rotation,
-				keyframes: [{
-					time: 0 * duration,
-					value: MRE.Quaternion.RotationAxis(axis, start)
-				}, {
-					time: 0.25 * duration,
-					value: MRE.Quaternion.RotationAxis(axis, start + Math.PI * 1 / 2)
-				}, {
-					time: 0.5 * duration,
-					value: MRE.Quaternion.RotationAxis(axis, start + Math.PI * 2 / 2)
-				}, {
-					time: 0.75 * duration,
-					value: MRE.Quaternion.RotationAxis(axis, start + Math.PI * 3 / 2)
-				}, {
-					time: 1 * duration,
-					value: MRE.Quaternion.RotationAxis(axis, start + Math.PI * 4 / 2)
-				}]
-			} as MRE.Track<MRE.Quaternion>]
-		}
-	}
 
 	loadMusic = (array:MRE.Sound[]) => {
 		this.musicSoundInstance = this.musicButton.startSound(
@@ -370,5 +239,87 @@ export default class SoundTest{
 	}
 
 
+
+
+	/**
+     * loops through an array of controls adding up/dn buttons for each
+     * @param controls 
+     * @param parent 
+     */
+	private createControls(controls: ControlDefinition[], parent: MRE.Actor) {
+		const arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+		const layout = new MRE.PlanarGridLayout(parent)
+
+		let i = 0
+
+		for (const controlDef of controls) {
+			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
+			layout.addCell({
+				row: i,
+				column: 1,
+				width: 0.3,
+				height: 0.25,
+				contents: label = MRE.Actor.Create(this.context, {
+					actor: {
+						name: `${controlDef.label}-label`,
+						parentId: parent.id,
+						text: {
+							contents: `${controlDef.label}:\n${controlDef.action(0)}`,
+							height: 0.1,
+							anchor: MRE.TextAnchorLocation.MiddleCenter,
+							justify: MRE.TextJustify.Center,
+							color: MRE.Color3.FromInts(255, 200, 255)
+						}
+					}
+				})
+			})
+			controlDef.labelActor = label
+
+			layout.addCell({
+				row: i,
+				column: 0,
+				width: 0.3,
+				height: 0.25,
+				contents: less = MRE.Actor.Create(this.context, {
+					actor: {
+						name: `${controlDef.label}-less`,
+						parentId: parent.id,
+						appearance: { meshId: arrowMesh.id },
+						collider: { geometry: { shape: MRE.ColliderType.Auto } },
+						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+					}
+				})
+			})
+
+			layout.addCell({
+				row: i,
+				column: 2,
+				width: 0.3,
+				height: 0.25,
+				contents: more = MRE.Actor.Create(this.context, {
+					actor: {
+						name: `${controlDef.label}-more`,
+						parentId: parent.id,
+						appearance: { meshId: arrowMesh.id },
+						collider: { geometry: { shape: MRE.ColliderType.Auto } },
+						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
+					}
+				})
+			})
+
+			less.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
+			})
+
+			more.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(1)}`
+			})
+
+			i++
+		}
+
+		layout.applyLayout()
+
+	}
 
 }

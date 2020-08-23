@@ -49,7 +49,7 @@ async function runApp() {
 		baseUrl: (process.env.BASE_URL),
 		baseDir: resolvePath(__dirname, '../public'),
 		port: (process.env.PORT)
-	});
+	})
 
 	console.log("server info: ", server)
 
