@@ -17,7 +17,9 @@ export default class SoundTest{
 	private assets: MRE.AssetContainer
 	private musicAssets: MRE.AssetContainer
 
-	private _musicState = false
+	private autoAdvanceIntervalSeconds = 2
+	private musicIsPlaying = false
+	private elapsedPlaySeconds = 0
 	private _dopplerSoundState = 0
 	private currentsongIndex = 0
 	private musicButton : MRE.Actor
@@ -124,19 +126,23 @@ export default class SoundTest{
 			}
 		})
 
+		//watch for the track duration to elapse. this will allow us to advance to the next song
+		const watchForTrackAutoAdvance = () => {
+			//integrate the elapsed play time
+			if (this.musicIsPlaying) {this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds}
 
-		//read in all of the music files
-		fs.readdirSync('./public/music/').forEach(eachFileName => {
-			// console.log("this.musicFileInfo test: ", this.musicFileInfo)
-			let tempArray = this.musicFileInfo.filter(eachFile => eachFileName.replace('-', ' ').toLowerCase().includes( eachFile.name.toLowerCase() ))
+			// console.log(`It's been ${this.elapsedPlaySeconds} seconds since the song started`)
+			if (this.elapsedPlaySeconds > this.musicFileInfo[this.currentsongIndex].duration + 2) loadNextTrack()
+		}
 
-			if (tempArray) {tempArray[0].url = `${this.baseUrl}/music/${eachFileName}`}
+		//start the track advance watch	
+		setInterval(watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
 
-		})
+		//clear the current track and load the next one
+		const loadNextTrack = () => {
+			//reset the elapsed time
+			this.elapsedPlaySeconds = 0
 
-		console.log("this.musicFileInfo: ", this.musicFileInfo)
-
-		const loadNextMusic = () => {
 			//increment the song index and roll it over when we get to the end of the list
 			this.currentsongIndex = this.currentsongIndex > this.musicFileInfo.length-2 ? 0 : this.currentsongIndex + 1
 
@@ -151,10 +157,8 @@ export default class SoundTest{
 
 			//create the next sound
 			let file = this.musicFileInfo[this.currentsongIndex]
-			console.log("file: ", file)
+			console.log("playing next track: ", file)
 			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
-
-			setInterval(loadNextMusic, this.musicFileInfo[this.currentsongIndex].duration * 1000 + 2000)			
 
 			//save the next sound into the active instance
 			this.musicSoundInstance = this.musicButton.startSound(
@@ -163,15 +167,15 @@ export default class SoundTest{
 					volume: 0.04,
 					looping: false,
 					doppler: 0.0,
-					spread: 0.7,
+					spread: 0.4,
 					rolloffStartDistance: 2.5,
 					time: 0.0
 				}
 			)
 		}
 
-		//load the first sond into the object
-		loadNextMusic()
+		//load the first sound into the object
+		loadNextTrack()
 		
 		//default to paused
         this.musicSoundInstance.pause()
@@ -183,9 +187,9 @@ export default class SoundTest{
         //define pause/resume control
 		const cycleMusicState = () => {
 			//toggle the music state
-			this._musicState = !this._musicState
+			this.musicIsPlaying = !this.musicIsPlaying
 			//depending on the state control the party
-			if (this._musicState) {
+			if (this.musicIsPlaying) {
 				this.musicSoundInstance.resume()
 			} else {
 				this.musicSoundInstance.pause()
@@ -193,7 +197,7 @@ export default class SoundTest{
         }
         
 		musicButtonBehavior.onButton('pressed', cycleMusicState)
-		musicNextButtonBehavior.onButton('pressed', loadNextMusic)
+		musicNextButtonBehavior.onButton('pressed', loadNextTrack)
 
 
 		const notesButton = MRE.Actor.Create(this.context, {

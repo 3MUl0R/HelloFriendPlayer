@@ -8,9 +8,8 @@ import dotenv from 'dotenv';
 import { resolve as resolvePath } from 'path';
 import App from './app';
 import * as musicMetadata from 'music-metadata-browser'
-import fs, { promises } from 'fs'
+import fs from 'fs'
 import AudioFileInfo from './types'
-import { stringify } from 'querystring';
 
 
 /* eslint-disable no-console */
@@ -38,10 +37,12 @@ const musicFileInfoArray : Array<AudioFileInfo> = []
 // we detect that the code is running in a debuggable environment. If so, a
 // small delay is introduced allowing time for the debugger to attach before
 // the server starts accepting connections.
-function runApp() {
+async function runApp() {
 
 	console.log("musicMetadata: ", musicFileInfoArray)
 
+	//if we are in dev then we will need to set the base url
+	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1:3901'
 
 	// Start listening for connections, and serve static files.
 	const server = new WebHost({
@@ -52,32 +53,21 @@ function runApp() {
 
 	console.log("server info: ", server)
 
-	//read the files from the directory
-	fs.readdir('./public/music/', (err, dirList) => {
-		//create an array for all of the promises
-		const promises : Array<Promise<musicMetadata.IAudioMetadata>> = []
+	//get a list of all the music files
+	const fileList = fs.readdirSync('./public/music/')
 
-		//loop through the list and save the promises
-		dirList.forEach(file => {
-			//parse each file for its info
-			promises.push( musicMetadata.parseBuffer(fs.readFileSync(`./public/music/${file}`)))
-		})
+	//loop through the list and capture file properties
+	for (let index = 0; index < fileList.length; index++) {
+		const fileName = fileList[index]
+		const data = await musicMetadata.parseBuffer(fs.readFileSync(`./public/music/${fileName}`)) 
+		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/${fileName}`, fileName:fileName} )
+	}
 
-		//when all of the promises are finished save the file info to an array
-		Promise.all(promises).then(dataArray => {
-			dataArray.forEach(data => {
-				// console.log("music file data: ", data)
-				musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:'', fileName:""} )
-			})
-		
-		//log the file info and start the app
-		}).then(() => {
+	console.log("musicFileInfoArray after creation: ", musicFileInfoArray)
+
+	// Handle new application sessions
+	server.adapter.onConnection(context => new App(context, server.baseUrl, musicFileInfoArray))
 	
-			// Handle new application sessions
-			server.adapter.onConnection(context => new App(context, server.baseUrl, musicFileInfoArray))
-		})
-
-	})
 }
 
 // Check whether code is running in a debuggable watched filesystem
