@@ -35,7 +35,7 @@ export default class SoundTest{
 	private elapsedPlaySeconds = 0
 	private dopplerSoundState = 0
 	private currentsongIndex = 0
-	private musicButton : MRE.Actor
+	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
 	controls: ControlDefinition[] = []
 	private volume = 0.04
@@ -80,6 +80,21 @@ export default class SoundTest{
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssets = new MRE.AssetContainer(this.context)
 
+		this.musicSpeaker = MRE.Actor.Create(this.context, {
+			actor: {
+				name: `TheSoundSpeaker`,
+				parentId: rootActor.id,
+			}
+		})
+
+
+		//read the directory contents of the web based folder
+		// const fileList = fs.readdirSync(`${this.baseUrl}/publc`)
+		// console.log("the folder contained: ", fileList)
+		//get track properties for each of the files
+
+
+
 
 		//watch for the track duration to elapse. this will allow us to advance to the next song
 		const watchForTrackAutoAdvance = () => {
@@ -116,7 +131,7 @@ export default class SoundTest{
 			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
 
 			//save the next sound into the active instance
-			this.musicSoundInstance = this.musicButton.startSound(
+			this.musicSoundInstance = this.musicSpeaker.startSound(
 				currentMusicAsset.id,
 				{
 					volume: this.volume,
@@ -222,22 +237,6 @@ export default class SoundTest{
 
 		return true
 	}
-
-
-	loadMusic = (array:MRE.Sound[]) => {
-		this.musicSoundInstance = this.musicButton.startSound(
-			array[ this.currentsongIndex ].id,
-			{
-				volume: 0.2,
-				looping: false,
-				doppler: 0.0,
-				spread: 0.7,
-				rolloffStartDistance: 2.5,
-				time: 0.0
-            }
-		)
-	}
-
 
 
 

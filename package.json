@@ -13,8 +13,13 @@
   "license": "ISC",
   "dependencies": {
     "@microsoft/mixed-reality-extension-sdk": "^0.20.0",
+    "@types/socket.io": "^2.1.11",
+    "@types/socket.io-client": "^1.4.33",
     "dotenv": "^8.2.0",
-    "music-metadata-browser": "^2.1.2"
+    "got": "^11.5.2",
+    "music-metadata-browser": "^2.1.2",
+    "socket.io": "^2.3.0",
+    "socket.io-client": "^2.3.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.4",

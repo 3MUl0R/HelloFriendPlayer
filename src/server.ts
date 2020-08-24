@@ -10,6 +10,9 @@ import App from './app';
 import * as musicMetadata from 'music-metadata-browser'
 import fs from 'fs'
 import AudioFileInfo from './types'
+import socketIO from "socket.io"
+
+const io = socketIO()
 
 
 /* eslint-disable no-console */
@@ -85,3 +88,12 @@ if (isDebug) {
 } else {
 	runApp();
 }
+
+
+
+// socketio server setup
+io.on('connection', (client:string) => { 
+	console.log("client connected:, ", client)
+})
+
+io.listen( 3000 )
