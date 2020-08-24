@@ -9,7 +9,7 @@ import QueVid from './queVid'
 import AudioFileInfo from './types'
 import socketIO from "socket.io-client"
 
-const socket = socketIO("http://127.0.0.1:3000") 
+const socket = socketIO("http://127.0.0.1:3902") 
 
 // socket.on('time', function(timeString:string) {
 //   console.log("server sent time function")
