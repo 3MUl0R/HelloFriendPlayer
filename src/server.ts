@@ -4,13 +4,26 @@
  */
 
 import { WebHost } from '@microsoft/mixed-reality-extension-sdk';
-import dotenv from 'dotenv';
+import dotenv, { parse } from 'dotenv';
 import { resolve as resolvePath } from 'path';
 import App from './app';
 import * as musicMetadata from 'music-metadata-browser'
 import fs from 'fs'
 import AudioFileInfo from './types'
 import socketIO from "socket.io"
+import got from 'got'
+import dropbox from './dropboxExp'
+import Global = NodeJS.Global
+
+
+export interface GlobalWithCognitoFix extends Global {
+	fetch: any
+	XMLHttpRequest: any
+}
+declare const global: GlobalWithCognitoFix;
+global.fetch = require('fetch-readablestream')
+global.XMLHttpRequest = require('xhr2')
+
 
 const io = socketIO()
 
@@ -24,16 +37,7 @@ process.on('unhandledRejection', reason => console.log('unhandledRejection', rea
 dotenv.config();
 
 const musicFileInfoArray : Array<AudioFileInfo> = []
-
-//read in all of the music files
-// fs.readdirSync('./public/music/').forEach(file => {
-
-// 	musicMetadata.parseBuffer(fs.readFileSync(`./public/music/${file}`)).then(data => {
-// 		console.log(`${file} duration :`, data.format.duration)
-// 		musicFileInfoArray.push({name:file, duration:data.format.duration})
-// 	})
-	
-// })
+const dropBoxMetaGrabber = new dropbox
 
 
 // This function starts the MRE server. It will be called immediately unless
@@ -66,7 +70,7 @@ async function runApp() {
 		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/${fileName}`, fileName:fileName} )
 	}
 
-	console.log("musicFileInfoArray after creation: ", musicFileInfoArray)
+	// console.log("musicFileInfoArray after creation: ", musicFileInfoArray)
 
 	// Handle new application sessions
 	server.adapter.onConnection(context => new App(context, server.baseUrl, musicFileInfoArray))
@@ -90,10 +94,50 @@ if (isDebug) {
 }
 
 
-
+//===================
 // socketio server setup
-io.on('connection', (client:string) => { 
-	console.log("client connected:, ", client)
+io.on('connection', (socket: SocketIO.Socket) => { 
+	console.log("client connected", socket.client.id)
+
+	//
+	socket.on("readDropBoxFolder", (dropBoxfolderUrl) => {
+		console.log("readDropBoxFolder dropBoxfolderUrl: ", dropBoxfolderUrl)
+		reply(socket, dropBoxfolderUrl)
+
+	})
+
 })
 
+
+
+async function reply(socket: SocketIO.Socket, url:string) {
+	//pull the page from the provided url
+	const response = await got(url)
+	//create the regex to match the file links
+	const regex = /(https:\/\/www\.dropbox\.com\/sh.{1,80}\.ogg\?dl=0)/gm
+	//pull all the links from the body
+	const matches = response.body.match(regex)
+	//get rid of any duplicates
+	const links = [... new Set(matches)]
+
+
+	const myURL = "https://dl.dropboxusercontent.com/sh/4oeq6mdfj59m5su/AADqRhhAegfGQpvXZt6HnRi_a/Backgrounds_Bird_ST028880.ogg"
+	console.log("getting meta for file at: ", myURL)
+	const data = await musicMetadata.fetchFromUrl(myURL)
+
+	console.log("data: ", data)
+	musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/Untouchable.ogg`, fileName:"Untouchable.ogg"} )
+	console.log("musicFileInfoArray: ", musicFileInfoArray)
+
+
+	// dropBoxMetaGrabber.getFileMetadata('https://dl.dropboxusercontent.com/sh/4oeq6mdfj59m5su/AADqRhhAegfGQpvXZt6HnRi_a/Backgrounds_Bird_ST028880.ogg').then(data => {
+	// 	console.log("data returned: ", data)
+	// })
+	
+
+
+	socket.emit("deliverReadDropBoxfolder", links)
+}
+
 io.listen( 3902 )
+

@@ -4,11 +4,8 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
-import delay from './delay'
 import Prompt from './prompt'
-import fs from 'fs'
 import AudioFileInfo from './types'
-import { Collider } from '@microsoft/mixed-reality-extension-sdk'
 
 
 /** Defines an animation control field */
@@ -33,7 +30,6 @@ export default class SoundTest{
 	private autoAdvanceIntervalSeconds = 2
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
-	private dopplerSoundState = 0
 	private currentsongIndex = 0
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
@@ -50,7 +46,7 @@ export default class SoundTest{
      * @param context 
      * @param baseUrl 
      */
-    constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]){
+    constructor(private context: MRE.Context, private baseUrl: string, private socket: SocketIOClient.Socket, private musicFileInfo: AudioFileInfo[] = []){
 
     }
 
@@ -88,21 +84,15 @@ export default class SoundTest{
 		})
 
 
-		//read the directory contents of the web based folder
-		// const fileList = fs.readdirSync(`${this.baseUrl}/publc`)
-		// console.log("the folder contained: ", fileList)
-		//get track properties for each of the files
-
-
-
-
 		//watch for the track duration to elapse. this will allow us to advance to the next song
 		const watchForTrackAutoAdvance = () => {
 			//integrate the elapsed play time
 			if (this.musicIsPlaying) {this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds}
 
-			// console.log(`It's been ${this.elapsedPlaySeconds} seconds since the song started`)
-			if (this.elapsedPlaySeconds > this.musicFileInfo[this.currentsongIndex].duration + 2) loadNextTrack()
+			//if music has been loaded we can check for duration to be elapsed
+			if (this.musicFileInfo[this.currentsongIndex]){
+				if (this.elapsedPlaySeconds > this.musicFileInfo[this.currentsongIndex].duration + 2) loadNextTrack()
+			}
 		}
 
 		//start the track advance watch	
@@ -125,30 +115,33 @@ export default class SoundTest{
 			//recreate the asset container
 			this.musicAssets = new MRE.AssetContainer(this.context)
 
-			//create the next sound
-			let file = this.musicFileInfo[this.currentsongIndex]
-			console.log("playing next track: ", file)
-			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+			//create the next sound if music has been loaded
+			if (this.musicFileInfo[this.currentsongIndex]){
 
-			//save the next sound into the active instance
-			this.musicSoundInstance = this.musicSpeaker.startSound(
-				currentMusicAsset.id,
-				{
-					volume: this.volume,
-					looping: false,
-					doppler: 0.0,
-					spread: 0.4,
-					rolloffStartDistance: 2.5,
-					time: 0.0
-				}
-			)
+				let file = this.musicFileInfo[this.currentsongIndex]
+				console.log("playing next track: ", file)
+				const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+	
+				//save the next sound into the active instance
+				this.musicSoundInstance = this.musicSpeaker.startSound(
+					currentMusicAsset.id,
+					{
+						volume: this.volume,
+						looping: false,
+						doppler: 0.0,
+						spread: 0.4,
+						rolloffStartDistance: 2.5,
+						time: 0.0
+					}
+				)
+			}
 		}
 
 		//load the first sound into the object
 		loadNextTrack()
 		
 		//default to paused
-        this.musicSoundInstance.pause()
+        if (this.musicSoundInstance) this.musicSoundInstance.pause()
 		
         //define pause/resume control
 		const cycleMusicState = () => {
@@ -164,15 +157,17 @@ export default class SoundTest{
         
 		//use to adjust the state of the currently playing sound
 		const adjustSoundState = () => {
-			this.musicSoundInstance.setState(
-				{
-					volume: this.volume,
-					looping: false,
-					doppler: 0.0,
-					spread: this.spread,
-					rolloffStartDistance: this.rolloffStartDistance
-				}
-			)
+			if (this.musicSoundInstance){
+				this.musicSoundInstance.setState(
+					{
+						volume: this.volume,
+						looping: false,
+						doppler: 0.0,
+						spread: this.spread,
+						rolloffStartDistance: this.rolloffStartDistance
+					}
+				)
+			}
 		}
 
 		//define controls for the stream
@@ -182,7 +177,7 @@ export default class SoundTest{
 				label: "Playing", realtime: true, action: incr => {
 					if (incr !== 0) {
 						if (!this.musicIsPlaying) {
-							cycleMusicState()
+							loadNextTrack()
 						} else {
 							cycleMusicState()
 						}
@@ -235,10 +230,16 @@ export default class SoundTest{
 		}))
 
 
+		this.socket.emit('readDropBoxFolder', "https://www.dropbox.com/sh/4oeq6mdfj59m5su/AACyeFqz8LQHYoDaQr1nhBwLa")
+
+		this.socket.on("deliverReadDropBoxfolder", function(links:Array<string>) {
+			console.log("the returned file list: ", links)
+
+			
+		})
+
 		return true
 	}
-
-
 
 	/**
      * loops through an array of controls adding up/dn buttons for each

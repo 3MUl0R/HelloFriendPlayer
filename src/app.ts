@@ -32,7 +32,7 @@ export default class myApp{
 	public expectedResultDescription = "Sounds. Click buttons to toggle"
 	protected modsOnly = true
 
-	private musicObjects = new SoundTest(this.context, this.baseUrl, this.musicFileInfo)
+	private musicObjects = new SoundTest(this.context, this.baseUrl, socket)
 	private queVid = new QueVid(this.context, this.baseUrl)
 
 
