@@ -7,7 +7,7 @@ import { WebHost } from '@microsoft/mixed-reality-extension-sdk';
 import dotenv, { parse } from 'dotenv';
 import { resolve as resolvePath } from 'path';
 import App from './app';
-import * as musicMetadata from 'music-metadata-browser'
+import * as musicMetadata from 'music-metadata'
 import fs from 'fs'
 import AudioFileInfo from './types'
 import socketIO from "socket.io"
@@ -19,10 +19,12 @@ import Global = NodeJS.Global
 export interface GlobalWithCognitoFix extends Global {
 	fetch: any
 	XMLHttpRequest: any
+	ReadableStream : any
 }
 declare const global: GlobalWithCognitoFix;
 global.fetch = require('fetch-readablestream')
 global.XMLHttpRequest = require('xhr2')
+global.ReadableStream = require('readable-stream')
 
 
 const io = socketIO()
@@ -108,7 +110,16 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
 })
 
+const ReadableWebToNodeStream = require('readable-web-to-node-stream');
+const fetch = require('fetch-readablestream')
 
+async function download(url:string) {
+	const response = await fetch(url);
+	const readableWebStream = response.body;
+	const nodeStream = new ReadableWebToNodeStream(readableWebStream);
+	const data = await musicMetadata.parseStream(nodeStream, {mimeType: 'audio/vorbis'}, {duration: true, skipCovers: true})
+	console.log("data: ", data)
+}
 
 async function reply(socket: SocketIO.Socket, url:string) {
 	//pull the page from the provided url
@@ -123,11 +134,13 @@ async function reply(socket: SocketIO.Socket, url:string) {
 
 	const myURL = "https://dl.dropboxusercontent.com/sh/4oeq6mdfj59m5su/AADqRhhAegfGQpvXZt6HnRi_a/Backgrounds_Bird_ST028880.ogg"
 	console.log("getting meta for file at: ", myURL)
-	const data = await musicMetadata.fetchFromUrl(myURL)
 
-	console.log("data: ", data)
-	musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/Untouchable.ogg`, fileName:"Untouchable.ogg"} )
-	console.log("musicFileInfoArray: ", musicFileInfoArray)
+	download(myURL)
+	// const data = await musicMetadata.parseStream(myURL)
+
+	// console.log("data: ", data)
+	// musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/Untouchable.ogg`, fileName:"Untouchable.ogg"} )
+	// console.log("musicFileInfoArray: ", musicFileInfoArray)
 
 
 	// dropBoxMetaGrabber.getFileMetadata('https://dl.dropboxusercontent.com/sh/4oeq6mdfj59m5su/AADqRhhAegfGQpvXZt6HnRi_a/Backgrounds_Bird_ST028880.ogg').then(data => {
