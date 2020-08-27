@@ -4,28 +4,15 @@
  */
 
 import { WebHost } from '@microsoft/mixed-reality-extension-sdk';
-import dotenv, { parse } from 'dotenv';
+import dotenv from 'dotenv';
 import { resolve as resolvePath } from 'path';
 import App from './app';
 import * as musicMetadata from 'music-metadata'
 import fs from 'fs'
 import AudioFileInfo from './types'
 import socketIO from "socket.io"
+import fetch from 'node-fetch'
 import got from 'got'
-import dropbox from './dropboxExp'
-import Global = NodeJS.Global
-
-
-export interface GlobalWithCognitoFix extends Global {
-	fetch: any
-	XMLHttpRequest: any
-	ReadableStream : any
-}
-declare const global: GlobalWithCognitoFix;
-global.fetch = require('fetch-readablestream')
-global.XMLHttpRequest = require('xhr2')
-global.ReadableStream = require('readable-stream')
-
 
 const io = socketIO()
 
@@ -38,8 +25,6 @@ process.on('unhandledRejection', reason => console.log('unhandledRejection', rea
 // Read .env if file exists
 dotenv.config();
 
-const musicFileInfoArray : Array<AudioFileInfo> = []
-const dropBoxMetaGrabber = new dropbox
 
 
 // This function starts the MRE server. It will be called immediately unless
@@ -48,9 +33,8 @@ const dropBoxMetaGrabber = new dropbox
 // the server starts accepting connections.
 async function runApp() {
 
-	console.log("musicMetadata: ", musicFileInfoArray)
-
-	//if we are in dev then we will need to set the base url
+	const musicFileInfoArray : Array<AudioFileInfo> = []
+	//if one was not provided then we will need to set the base url
 	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1:3901'
 
 	// Start listening for connections, and serve static files.
@@ -60,9 +44,9 @@ async function runApp() {
 		port: (process.env.PORT)
 	})
 
-	console.log("server info: ", server)
+	console.log("server started: ", server)
 
-	//get a list of all the music files
+	//get a list of all the music files stored on the local disk
 	const fileList = fs.readdirSync('./public/music/')
 
 	//loop through the list and capture file properties
@@ -71,8 +55,6 @@ async function runApp() {
 		const data = await musicMetadata.parseBuffer(fs.readFileSync(`./public/music/${fileName}`)) 
 		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/${fileName}`, fileName:fileName} )
 	}
-
-	// console.log("musicFileInfoArray after creation: ", musicFileInfoArray)
 
 	// Handle new application sessions
 	server.adapter.onConnection(context => new App(context, server.baseUrl, musicFileInfoArray))
@@ -97,59 +79,67 @@ if (isDebug) {
 
 
 //===================
-// socketio server setup
+// socketio setup
+//this is where we provide backend functionality for our app
 io.on('connection', (socket: SocketIO.Socket) => { 
 	console.log("client connected", socket.client.id)
 
 	//
 	socket.on("readDropBoxFolder", (dropBoxfolderUrl) => {
 		console.log("readDropBoxFolder dropBoxfolderUrl: ", dropBoxfolderUrl)
-		reply(socket, dropBoxfolderUrl)
-
+		processDropBoxfolderAndReply(dropBoxfolderUrl, socket)
 	})
 
 })
 
-const ReadableWebToNodeStream = require('readable-web-to-node-stream');
-const fetch = require('fetch-readablestream')
-
-async function download(url:string) {
-	const response = await fetch(url);
-	const readableWebStream = response.body;
-	const nodeStream = new ReadableWebToNodeStream(readableWebStream);
-	const data = await musicMetadata.parseStream(nodeStream, {mimeType: 'audio/vorbis'}, {duration: true, skipCovers: true})
-	console.log("data: ", data)
+/**
+ * pulls meta data for one audio file url
+ * @param url 
+ */
+const parseStream = async function (url:string): Promise<musicMetadata.IAudioMetadata> {
+	console.log("getting meta for: ", url)
+	// Read HTTP headers
+	const response:any = await fetch(url); 
+	// Extract the content-type
+	const contentType = response.headers.get('content-type'); 
+	//parse the stream
+	const metadata = await musicMetadata.parseStream(response.body, {mimeType: contentType}, {duration:true, skipPostHeaders:true, skipCovers:true})
+	return metadata
 }
 
-async function reply(socket: SocketIO.Socket, url:string) {
+/**
+ * Gathers .oop links from a dropbox folder, formats them for download, and puls all metadata
+ * and send it back to the client
+ * @param url 
+ */
+const processDropBoxfolderAndReply = async function (url:string, socket:socketIO.Socket) {
 	//pull the page from the provided url
-	const response = await got(url)
+	const response = await got(url as string)
 	//create the regex to match the file links
-	const regex = /(https:\/\/www\.dropbox\.com\/sh.{1,80}\.ogg\?dl=0)/gm
+	const regex = /(https:\/\/www\.dropbox\.com\/sh.{1,80}\.ogg)/gm
 	//pull all the links from the body
 	const matches = response.body.match(regex)
 	//get rid of any duplicates
 	const links = [... new Set(matches)]
 
+	//create the array for the file info we will find
+	const musicFileInfoArray : Array<AudioFileInfo> = []
 
-	const myURL = "https://dl.dropboxusercontent.com/sh/4oeq6mdfj59m5su/AADqRhhAegfGQpvXZt6HnRi_a/Backgrounds_Bird_ST028880.ogg"
-	console.log("getting meta for file at: ", myURL)
+	for (let index = 0; index < links.length; index++) {
+		var link = links[index]
+		link = link.replace('www.dropbox', 'dl.dropboxusercontent')
+		const data = await parseStream(link)
+		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:link, fileName:''} )
+	}
 
-	download(myURL)
-	// const data = await musicMetadata.parseStream(myURL)
-
-	// console.log("data: ", data)
-	// musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/Untouchable.ogg`, fileName:"Untouchable.ogg"} )
-	// console.log("musicFileInfoArray: ", musicFileInfoArray)
-
-
-	// dropBoxMetaGrabber.getFileMetadata('https://dl.dropboxusercontent.com/sh/4oeq6mdfj59m5su/AADqRhhAegfGQpvXZt6HnRi_a/Backgrounds_Bird_ST028880.ogg').then(data => {
-	// 	console.log("data returned: ", data)
-	// })
-	
+	socket.emit('deliverReadDropBoxfolder', musicFileInfoArray)
+}
 
 
-	socket.emit("deliverReadDropBoxfolder", links)
+
+async function reply(socket: SocketIO.Socket, folderUrl:string) {
+
+	// socket.emit("deliverReadDropBoxfolder", links)
 }
 
 io.listen( 3902 )

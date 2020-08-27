@@ -46,7 +46,7 @@ export default class SoundTest{
      * @param context 
      * @param baseUrl 
      */
-    constructor(private context: MRE.Context, private baseUrl: string, private socket: SocketIOClient.Socket, private musicFileInfo: AudioFileInfo[] = []){
+    constructor(private context: MRE.Context, private baseUrl: string, private socket: SocketIOClient.Socket, private musicFileList: AudioFileInfo[] = []){
 
     }
 
@@ -90,8 +90,8 @@ export default class SoundTest{
 			if (this.musicIsPlaying) {this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds}
 
 			//if music has been loaded we can check for duration to be elapsed
-			if (this.musicFileInfo[this.currentsongIndex]){
-				if (this.elapsedPlaySeconds > this.musicFileInfo[this.currentsongIndex].duration + 2) loadNextTrack()
+			if (this.musicFileList[this.currentsongIndex]){
+				if (this.elapsedPlaySeconds > this.musicFileList[this.currentsongIndex].duration + 2) loadNextTrack()
 			}
 		}
 
@@ -104,7 +104,7 @@ export default class SoundTest{
 			this.elapsedPlaySeconds = 0
 
 			//increment the song index and roll it over when we get to the end of the list
-			this.currentsongIndex = this.currentsongIndex > this.musicFileInfo.length-2 ? 0 : this.currentsongIndex + 1
+			this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
 
 			//if the current sound exists stop it 
 			if (this.musicSoundInstance) this.musicSoundInstance.stop()
@@ -116,9 +116,9 @@ export default class SoundTest{
 			this.musicAssets = new MRE.AssetContainer(this.context)
 
 			//create the next sound if music has been loaded
-			if (this.musicFileInfo[this.currentsongIndex]){
+			if (this.musicFileList[this.currentsongIndex]){
 
-				let file = this.musicFileInfo[this.currentsongIndex]
+				let file = this.musicFileList[this.currentsongIndex]
 				console.log("playing next track: ", file)
 				const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
 	
@@ -230,16 +230,16 @@ export default class SoundTest{
 		}))
 
 
-		this.socket.emit('readDropBoxFolder', "https://www.dropbox.com/sh/4oeq6mdfj59m5su/AACyeFqz8LQHYoDaQr1nhBwLa")
+		
 
-		this.socket.on("deliverReadDropBoxfolder", function(links:Array<string>) {
-			console.log("the returned file list: ", links)
-
-			
+		this.socket.on("deliverReadDropBoxfolder", (dropboxFileInfo:AudioFileInfo[]) => {
+			console.log("the returned file list: ", dropboxFileInfo)
+			this.musicFileList = dropboxFileInfo
 		})
 
 		return true
 	}
+
 
 	/**
      * loops through an array of controls adding up/dn buttons for each
@@ -248,9 +248,57 @@ export default class SoundTest{
      */
 	private createControls(controls: ControlDefinition[], parent: MRE.Actor) {
 		const arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+		const squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
 		const layout = new MRE.PlanarGridLayout(parent)
 
-		let i = 0
+		let i = 1
+		let label: MRE.Actor, less: MRE.Actor
+
+		//create the set new dropbox button
+		layout.addCell({
+			row: 0,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: less = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'setNewDropBoxButton',
+					parentId: parent.id,
+					appearance: { meshId: squareMesh.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+				}
+			})
+		})
+
+		less.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			user.prompt("Who's your favorite musician?", true).then(res => {
+				this.socket.emit('readDropBoxFolder', res.text)
+			})
+			.catch(err => {
+				console.error(err)
+			})
+		})
+
+		layout.addCell({
+			row: 0,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: label = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'setNewDropBoxButton',
+					parentId: parent.id,
+					text: {
+						contents: 'Set dropbox folder',
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Right,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
 
 		for (const controlDef of controls) {
 			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
