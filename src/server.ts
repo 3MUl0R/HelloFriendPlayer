@@ -67,7 +67,8 @@ async function runApp() {
 	}
 
 	// Handle new application sessions
-	server.adapter.onConnection(context => new App(context, server.baseUrl, musicFileInfoArray))
+	console.log("launching app")
+	server.adapter.onConnection(context => new App(context, process.env.BASE_URL))
 	
 }
 

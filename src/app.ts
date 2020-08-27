@@ -5,10 +5,8 @@
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import SoundTest from './musicObjects'
-import AudioFileInfo from './types'
 import socketIO from "socket.io-client"
 
-const socket = socketIO(`${process.env.BASE_URL}:3902`) 
 
 
 /**
@@ -19,11 +17,9 @@ export default class myApp{
     // Container for preloaded object prefabs.
 	private assets: MRE.AssetContainer
 	private prefabs: { [key: string]: MRE.Prefab } = {}
-
-	public expectedResultDescription = "Sounds. Click buttons to toggle"
+	private socket : SocketIOClient.Socket
+	private musicObjects : SoundTest
 	protected modsOnly = true
-
-	private musicObjects = new SoundTest(this.context, this.baseUrl, socket)
 
 
     /**
@@ -31,7 +27,13 @@ export default class myApp{
 	 * @param context The MRE SDK context.
 	 * @param baseUrl The baseUrl to this project's `./public` folder
 	 */
-	constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]) {
+	constructor(private context: MRE.Context, private baseUrl: string) {
+
+		console.log("starting socket connection at: ", `${this.baseUrl}:3902`)
+
+		this.socket = socketIO(`${this.baseUrl}:3902`) 
+		this.musicObjects = new SoundTest(this.context, this.baseUrl, this.socket)
+
 
         //initialize an assets container 
 		this.assets = new MRE.AssetContainer(context)
