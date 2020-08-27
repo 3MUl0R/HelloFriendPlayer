@@ -145,6 +145,8 @@ export default class SoundTest{
 						time: 0.0
 					}
 				)
+				//mark the state as playing
+				this.musicIsPlaying = true
 			}
 		}
 
@@ -186,12 +188,10 @@ export default class SoundTest{
 		this.controls = [
 			{
 				label: "Playing", realtime: true, action: incr => {
-					if (incr !== 0) {
-						if (!this.musicIsPlaying) {
-							loadNextTrack()
-						} else {
-							cycleMusicState()
-						}
+					if (incr > 0) {
+						loadNextTrack()
+					}else if (incr < 0) {
+						cycleMusicState()
 					}
 					return this.musicIsPlaying.toString()
 				}
@@ -284,7 +284,7 @@ export default class SoundTest{
 
 		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
 			user.prompt("Enter your dropbox folder url", true).then(res => {
-				this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
+				if (res.submitted) this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
 			})
 			.catch(err => {
 				console.error(err)
