@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { WebHost } from '@microsoft/mixed-reality-extension-sdk';
+import * as MRE from '@microsoft/mixed-reality-extension-sdk';
 import dotenv from 'dotenv';
 import { resolve as resolvePath } from 'path';
 import App from './app';
@@ -15,6 +15,7 @@ import fetch from 'node-fetch'
 import got from 'got'
 
 const io = socketIO()
+var userRecords : Map<string, AudioFileInfo[]> = new Map
 
 
 /* eslint-disable no-console */
@@ -34,11 +35,17 @@ dotenv.config();
 async function runApp() {
 
 	const musicFileInfoArray : Array<AudioFileInfo> = []
+
+	//load playlist data from disk
+	const a = fs.readFileSync('./data/playlistData.json')
+	const b = JSON.parse(a.toString())
+	userRecords = new Map([...b])
+
 	//if one was not provided then we will need to set the base url
 	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1:3901'
 
 	// Start listening for connections, and serve static files.
-	const server = new WebHost({
+	const server = new MRE.WebHost({
 		baseUrl: (process.env.BASE_URL),
 		baseDir: resolvePath(__dirname, '../public'),
 		port: (process.env.PORT)
@@ -85,12 +92,22 @@ io.on('connection', (socket: SocketIO.Socket) => {
 	console.log("client connected", socket.client.id)
 
 	//
-	socket.on("readDropBoxFolder", (dropBoxfolderUrl) => {
-		console.log("readDropBoxFolder dropBoxfolderUrl: ", dropBoxfolderUrl)
-		processDropBoxfolderAndReply(dropBoxfolderUrl, socket)
+	socket.on("readDropBoxFolder", (dropBoxfolderUrl, sessionId:string) => {
+		console.log(`getting dropBoxfolder for ${sessionId}: `, dropBoxfolderUrl)
+		processDropBoxfolderAndReply(dropBoxfolderUrl, socket, sessionId)
+	})
+
+	socket.on('getSessionPlaylist', (sessionId:string) => {
+		const sid = sessionId 
+		const blank : AudioFileInfo[] = []
+		const playlist = userRecords.has(sid) ? userRecords.get(sid) : blank
+		socket.emit('deliverSessionPlaylist', playlist)
+		console.log(`sending playlist for ${sessionId}: `, playlist)
 	})
 
 })
+
+
 
 /**
  * pulls meta data for one audio file url
@@ -112,7 +129,7 @@ const parseStream = async function (url:string): Promise<musicMetadata.IAudioMet
  * and send it back to the client
  * @param url 
  */
-const processDropBoxfolderAndReply = async function (url:string, socket:socketIO.Socket) {
+const processDropBoxfolderAndReply = async function (url:string, socket:socketIO.Socket, sessionId:string) {
 	//pull the page from the provided url
 	const response = await got(url as string)
 	//create the regex to match the file links
@@ -121,26 +138,27 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 	const matches = response.body.match(regex)
 	//get rid of any duplicates
 	const links = [... new Set(matches)]
-
+	console.log("links found: ", links)
 	//create the array for the file info we will find
 	const musicFileInfoArray : Array<AudioFileInfo> = []
-
+	//pull the metadata for each file and save it to the array
 	for (let index = 0; index < links.length; index++) {
 		var link = links[index]
 		link = link.replace('www.dropbox', 'dl.dropboxusercontent')
 		const data = await parseStream(link)
 		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:link, fileName:''} )
 	}
+	//save the results for next time the user:session starts
+	console.log(`setting playlist for user:`, sessionId)
+	userRecords.set(sessionId, musicFileInfoArray)
+	// console.log("userRecords ", userRecords)
+	fs.writeFileSync('./data/playlistData.json', JSON.stringify([...userRecords], null, 2))
 
+
+	//send the final results back to the user
 	socket.emit('deliverReadDropBoxfolder', musicFileInfoArray)
 }
 
-
-
-async function reply(socket: SocketIO.Socket, folderUrl:string) {
-
-	// socket.emit("deliverReadDropBoxfolder", links)
-}
 
 io.listen( 3902 )
 

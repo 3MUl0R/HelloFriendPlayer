@@ -46,7 +46,12 @@ export default class SoundTest{
      * @param context 
      * @param baseUrl 
      */
-    constructor(private context: MRE.Context, private baseUrl: string, private socket: SocketIOClient.Socket, private musicFileList: AudioFileInfo[] = []){
+	constructor(
+			private context: MRE.Context, 
+			private baseUrl: string, 
+			private socket: SocketIOClient.Socket, 
+			private musicFileList: AudioFileInfo[] = []
+		){
 
     }
 
@@ -83,6 +88,12 @@ export default class SoundTest{
 			}
 		})
 
+		//get a playlist for this session if one exists
+		this.socket.emit("getSessionPlaylist", this.context.sessionId)
+		//when the playlist is returned capture it
+		this.socket.on("deliverSessionPlaylist", (playlist:AudioFileInfo[]) => {
+			this.musicFileList = playlist
+		})
 
 		//watch for the track duration to elapse. this will allow us to advance to the next song
 		const watchForTrackAutoAdvance = () => {
@@ -252,7 +263,7 @@ export default class SoundTest{
 		const layout = new MRE.PlanarGridLayout(parent)
 
 		let i = 1
-		let label: MRE.Actor, less: MRE.Actor
+		let label: MRE.Actor, button: MRE.Actor
 
 		//create the set new dropbox button
 		layout.addCell({
@@ -260,7 +271,7 @@ export default class SoundTest{
 			column: 0,
 			width: 0.3,
 			height: 0.25,
-			contents: less = MRE.Actor.Create(this.context, {
+			contents: button = MRE.Actor.Create(this.context, {
 				actor: {
 					name: 'setNewDropBoxButton',
 					parentId: parent.id,
@@ -271,9 +282,9 @@ export default class SoundTest{
 			})
 		})
 
-		less.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
-			user.prompt("Who's your favorite musician?", true).then(res => {
-				this.socket.emit('readDropBoxFolder', res.text)
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			user.prompt("Enter your dropbox folder url", true).then(res => {
+				this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
 			})
 			.catch(err => {
 				console.error(err)

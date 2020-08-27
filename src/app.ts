@@ -90,8 +90,6 @@ export default class myApp{
 		this.showHello(menu)
 
 		this.musicObjects.run(menu)
-
-		// this.queVid.run(menu)
 		
     }
     
@@ -109,8 +107,6 @@ export default class myApp{
 	 * Display a friendly greeting
 	 */
 	private showHello(root: MRE.Actor) {
-		// Create a parent object for all items you whish to display
-		//const menu = MRE.Actor.Create(this.context, {})
 
 		//create the label
 		MRE.Actor.Create(this.context, {
