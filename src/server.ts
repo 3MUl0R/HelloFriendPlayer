@@ -141,9 +141,8 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 	//pull the page from the provided url
 	const response = await got(url as string)
 	//create the regex to match the file links
-	const regex = /(https:\/\/www\.dropbox\.com\/sh.{1,80}\.ogg)/gm
+	const regex = /(https:\/\/www.dropbox\.com\/sh[a-zA-Z0-9%-?_]*(\.ogg))/gm
 	//pull all the links from the body
-	// console.log("body: ", response.body)
 	const matches = response.body.match(regex)
 	//get rid of any duplicates
 	const links = [... new Set(matches)]
