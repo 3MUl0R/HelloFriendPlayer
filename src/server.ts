@@ -36,6 +36,10 @@ async function runApp() {
 	console.log("starting app server")
 	const musicFileInfoArray : AudioFileInfo[] = []
 
+	if (!fs.existsSync('./data')){
+		fs.mkdirSync('./data');
+	}
+
 	//load playlist data from disk
 	if (fs.existsSync('./data/playlistData.json')){
 		const a = fs.readFileSync('./data/playlistData.json')
