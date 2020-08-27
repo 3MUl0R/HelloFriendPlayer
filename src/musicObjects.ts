@@ -4,11 +4,8 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
-import delay from './delay'
 import Prompt from './prompt'
-import fs from 'fs'
 import AudioFileInfo from './types'
-import { Collider } from '@microsoft/mixed-reality-extension-sdk'
 
 
 /** Defines an animation control field */
@@ -33,9 +30,8 @@ export default class SoundTest{
 	private autoAdvanceIntervalSeconds = 2
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
-	private dopplerSoundState = 0
 	private currentsongIndex = 0
-	private musicButton : MRE.Actor
+	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
 	controls: ControlDefinition[] = []
 	private volume = 0.04
@@ -50,7 +46,12 @@ export default class SoundTest{
      * @param context 
      * @param baseUrl 
      */
-    constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]){
+	constructor(
+			private context: MRE.Context, 
+			private baseUrl: string, 
+			private socket: SocketIOClient.Socket, 
+			private musicFileList: AudioFileInfo[] = []
+		){
 
     }
 
@@ -80,14 +81,29 @@ export default class SoundTest{
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssets = new MRE.AssetContainer(this.context)
 
+		this.musicSpeaker = MRE.Actor.Create(this.context, {
+			actor: {
+				name: `TheSoundSpeaker`,
+				parentId: rootActor.id,
+			}
+		})
+
+		//get a playlist for this session if one exists
+		this.socket.emit("getSessionPlaylist", this.context.sessionId)
+		//when the playlist is returned capture it
+		this.socket.on("deliverSessionPlaylist", (playlist:AudioFileInfo[]) => {
+			this.musicFileList = playlist
+		})
 
 		//watch for the track duration to elapse. this will allow us to advance to the next song
 		const watchForTrackAutoAdvance = () => {
 			//integrate the elapsed play time
 			if (this.musicIsPlaying) {this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds}
 
-			// console.log(`It's been ${this.elapsedPlaySeconds} seconds since the song started`)
-			if (this.elapsedPlaySeconds > this.musicFileInfo[this.currentsongIndex].duration + 2) loadNextTrack()
+			//if music has been loaded we can check for duration to be elapsed
+			if (this.musicFileList[this.currentsongIndex]){
+				if (this.elapsedPlaySeconds > this.musicFileList[this.currentsongIndex].duration + 2) loadNextTrack()
+			}
 		}
 
 		//start the track advance watch	
@@ -99,7 +115,7 @@ export default class SoundTest{
 			this.elapsedPlaySeconds = 0
 
 			//increment the song index and roll it over when we get to the end of the list
-			this.currentsongIndex = this.currentsongIndex > this.musicFileInfo.length-2 ? 0 : this.currentsongIndex + 1
+			this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
 
 			//if the current sound exists stop it 
 			if (this.musicSoundInstance) this.musicSoundInstance.stop()
@@ -110,30 +126,33 @@ export default class SoundTest{
 			//recreate the asset container
 			this.musicAssets = new MRE.AssetContainer(this.context)
 
-			//create the next sound
-			let file = this.musicFileInfo[this.currentsongIndex]
-			console.log("playing next track: ", file)
-			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+			//create the next sound if music has been loaded
+			if (this.musicFileList[this.currentsongIndex]){
 
-			//save the next sound into the active instance
-			this.musicSoundInstance = this.musicButton.startSound(
-				currentMusicAsset.id,
-				{
-					volume: this.volume,
-					looping: false,
-					doppler: 0.0,
-					spread: 0.4,
-					rolloffStartDistance: 2.5,
-					time: 0.0
-				}
-			)
+				let file = this.musicFileList[this.currentsongIndex]
+				console.log("playing next track: ", file)
+				const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+	
+				//save the next sound into the active instance
+				this.musicSoundInstance = this.musicSpeaker.startSound(
+					currentMusicAsset.id,
+					{
+						volume: this.volume,
+						looping: false,
+						doppler: 0.0,
+						spread: 0.4,
+						rolloffStartDistance: 2.5,
+						time: 0.0
+					}
+				)
+			}
 		}
 
 		//load the first sound into the object
 		loadNextTrack()
 		
 		//default to paused
-        this.musicSoundInstance.pause()
+        if (this.musicSoundInstance) this.musicSoundInstance.pause()
 		
         //define pause/resume control
 		const cycleMusicState = () => {
@@ -149,15 +168,17 @@ export default class SoundTest{
         
 		//use to adjust the state of the currently playing sound
 		const adjustSoundState = () => {
-			this.musicSoundInstance.setState(
-				{
-					volume: this.volume,
-					looping: false,
-					doppler: 0.0,
-					spread: this.spread,
-					rolloffStartDistance: this.rolloffStartDistance
-				}
-			)
+			if (this.musicSoundInstance){
+				this.musicSoundInstance.setState(
+					{
+						volume: this.volume,
+						looping: false,
+						doppler: 0.0,
+						spread: this.spread,
+						rolloffStartDistance: this.rolloffStartDistance
+					}
+				)
+			}
 		}
 
 		//define controls for the stream
@@ -167,7 +188,7 @@ export default class SoundTest{
 				label: "Playing", realtime: true, action: incr => {
 					if (incr !== 0) {
 						if (!this.musicIsPlaying) {
-							cycleMusicState()
+							loadNextTrack()
 						} else {
 							cycleMusicState()
 						}
@@ -220,25 +241,15 @@ export default class SoundTest{
 		}))
 
 
+		
+
+		this.socket.on("deliverReadDropBoxfolder", (dropboxFileInfo:AudioFileInfo[]) => {
+			console.log("the returned file list: ", dropboxFileInfo)
+			this.musicFileList = dropboxFileInfo
+		})
+
 		return true
 	}
-
-
-	loadMusic = (array:MRE.Sound[]) => {
-		this.musicSoundInstance = this.musicButton.startSound(
-			array[ this.currentsongIndex ].id,
-			{
-				volume: 0.2,
-				looping: false,
-				doppler: 0.0,
-				spread: 0.7,
-				rolloffStartDistance: 2.5,
-				time: 0.0
-            }
-		)
-	}
-
-
 
 
 	/**
@@ -248,9 +259,57 @@ export default class SoundTest{
      */
 	private createControls(controls: ControlDefinition[], parent: MRE.Actor) {
 		const arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+		const squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
 		const layout = new MRE.PlanarGridLayout(parent)
 
-		let i = 0
+		let i = 1
+		let label: MRE.Actor, button: MRE.Actor
+
+		//create the set new dropbox button
+		layout.addCell({
+			row: 0,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'setNewDropBoxButton',
+					parentId: parent.id,
+					appearance: { meshId: squareMesh.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+				}
+			})
+		})
+
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			user.prompt("Enter your dropbox folder url", true).then(res => {
+				this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
+			})
+			.catch(err => {
+				console.error(err)
+			})
+		})
+
+		layout.addCell({
+			row: 0,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: label = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'setNewDropBoxButton',
+					parentId: parent.id,
+					text: {
+						contents: 'Set dropbox folder',
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Right,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
 
 		for (const controlDef of controls) {
 			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor

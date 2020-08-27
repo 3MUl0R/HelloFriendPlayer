@@ -7,6 +7,17 @@ import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import SoundTest from './musicObjects'
 import QueVid from './queVid'
 import AudioFileInfo from './types'
+import socketIO from "socket.io-client"
+
+const socket = socketIO("http://127.0.0.1:3902") 
+
+// socket.on('time', function(timeString:string) {
+//   console.log("server sent time function")
+// })
+
+// socket.on("message", function(data:string) {
+// 	console.log(data);
+// })
 
 
 /**
@@ -21,7 +32,7 @@ export default class myApp{
 	public expectedResultDescription = "Sounds. Click buttons to toggle"
 	protected modsOnly = true
 
-	private musicObjects = new SoundTest(this.context, this.baseUrl, this.musicFileInfo)
+	private musicObjects = new SoundTest(this.context, this.baseUrl, socket)
 	private queVid = new QueVid(this.context, this.baseUrl)
 
 
@@ -79,8 +90,6 @@ export default class myApp{
 		this.showHello(menu)
 
 		this.musicObjects.run(menu)
-
-		// this.queVid.run(menu)
 		
     }
     
@@ -98,8 +107,6 @@ export default class myApp{
 	 * Display a friendly greeting
 	 */
 	private showHello(root: MRE.Actor) {
-		// Create a parent object for all items you whish to display
-		//const menu = MRE.Actor.Create(this.context, {})
 
 		//create the label
 		MRE.Actor.Create(this.context, {
