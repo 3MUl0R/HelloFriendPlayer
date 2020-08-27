@@ -33,20 +33,23 @@ dotenv.config();
 // small delay is introduced allowing time for the debugger to attach before
 // the server starts accepting connections.
 async function runApp() {
-
-	const musicFileInfoArray : Array<AudioFileInfo> = []
+	console.log("starting app server")
+	const musicFileInfoArray : AudioFileInfo[] = []
 
 	//load playlist data from disk
-	const a = fs.readFileSync('./data/playlistData.json')
-	const b = JSON.parse(a.toString())
-	userRecords = new Map([...b])
+	if (fs.existsSync('./data/playlistData.json')){
+		const a = fs.readFileSync('./data/playlistData.json')
+		const b = JSON.parse(a.toString())
+		userRecords = new Map([...b])
+		console.log("user records loaded from disk")
+	}
 
 	//if one was not provided then we will need to set the base url
-	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1:3901'
+	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1'
 
 	// Start listening for connections, and serve static files.
 	const server = new MRE.WebHost({
-		baseUrl: (process.env.BASE_URL),
+		baseUrl: process.env.BASE_URL + ':3901',
 		baseDir: resolvePath(__dirname, '../public'),
 		port: (process.env.PORT)
 	})
@@ -135,12 +138,13 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 	//create the regex to match the file links
 	const regex = /(https:\/\/www\.dropbox\.com\/sh.{1,80}\.ogg)/gm
 	//pull all the links from the body
+	// console.log("body: ", response.body)
 	const matches = response.body.match(regex)
 	//get rid of any duplicates
 	const links = [... new Set(matches)]
 	console.log("links found: ", links)
 	//create the array for the file info we will find
-	const musicFileInfoArray : Array<AudioFileInfo> = []
+	const musicFileInfoArray : AudioFileInfo[] = []
 	//pull the metadata for each file and save it to the array
 	for (let index = 0; index < links.length; index++) {
 		var link = links[index]

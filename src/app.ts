@@ -5,19 +5,10 @@
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import SoundTest from './musicObjects'
-import QueVid from './queVid'
 import AudioFileInfo from './types'
 import socketIO from "socket.io-client"
 
-const socket = socketIO("http://127.0.0.1:3902") 
-
-// socket.on('time', function(timeString:string) {
-//   console.log("server sent time function")
-// })
-
-// socket.on("message", function(data:string) {
-// 	console.log(data);
-// })
+const socket = socketIO(`${process.env.BASE_URL}:3902`) 
 
 
 /**
@@ -33,7 +24,6 @@ export default class myApp{
 	protected modsOnly = true
 
 	private musicObjects = new SoundTest(this.context, this.baseUrl, socket)
-	private queVid = new QueVid(this.context, this.baseUrl)
 
 
     /**
@@ -42,15 +32,14 @@ export default class myApp{
 	 * @param baseUrl The baseUrl to this project's `./public` folder
 	 */
 	constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]) {
+
         //initialize an assets container 
 		this.assets = new MRE.AssetContainer(context)
+
 		// Hook the context events we're interested in
 		this.context.onStarted(() => this.started())
 
-		this.context.onUserJoined(user => {
-
-			// this.queVid.createUserControls(user)
-		})
+		this.context.onUserJoined(user => {})
 
 		this.context.onUserLeft(user => this.userLeft(user))
 		
