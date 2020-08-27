@@ -4,7 +4,7 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
-import SoundTest from './musicObjects'
+import AudioPlayer from './audioPlayer'
 import socketIO from "socket.io-client"
 
 
@@ -14,11 +14,10 @@ import socketIO from "socket.io-client"
  */
 export default class myApp{
 
-    // Container for preloaded object prefabs.
 	private assets: MRE.AssetContainer
 	private prefabs: { [key: string]: MRE.Prefab } = {}
 	private socket : SocketIOClient.Socket
-	private musicObjects : SoundTest
+	private audioPlayer : AudioPlayer
 	protected modsOnly = true
 
 
@@ -28,21 +27,19 @@ export default class myApp{
 	 * @param baseUrl The baseUrl to this project's `./public` folder
 	 */
 	constructor(private context: MRE.Context, private baseUrl: string) {
-
+		//log that the app is being started
 		console.log("starting socket connection at: ", `${this.baseUrl}:3902`)
-
+		//start the socket connection to the server
 		this.socket = socketIO(`${this.baseUrl}:3902`) 
-		this.musicObjects = new SoundTest(this.context, this.baseUrl, this.socket)
-
+		//create an audio player instance
+		this.audioPlayer = new AudioPlayer(this.context, this.baseUrl, this.socket)
 
         //initialize an assets container 
 		this.assets = new MRE.AssetContainer(context)
 
-		// Hook the context events we're interested in
+		//define actions for context events we're interested in
 		this.context.onStarted(() => this.started())
-
 		this.context.onUserJoined(user => {})
-
 		this.context.onUserLeft(user => this.userLeft(user))
 		
 	}
@@ -75,13 +72,10 @@ export default class myApp{
     // use () => {} syntax here to get proper scope binding when called via setTimeout()
 	// if async is required, next line becomes private startedImpl = async () => {
 	private startedImpl = async () => {
-		const menu = MRE.Actor.Create(this.context, {})
+		const root = MRE.Actor.Create(this.context, {})
 		
         //do startup work here such as preloading objects or showing a menu
-		this.showHello(menu)
-
-		this.musicObjects.run(menu)
-		
+		this.audioPlayer.run(root)
     }
     
 
@@ -93,30 +87,5 @@ export default class myApp{
 
     }
     
-
-    /**
-	 * Display a friendly greeting
-	 */
-	private showHello(root: MRE.Actor) {
-
-		//create the label
-		MRE.Actor.Create(this.context, {
-			actor: {
-				parentId: root.id,
-				name: 'label',
-				text: {
-					contents: ''.padStart(8, ' ') + "HelloFriend",
-					height: 0.8,
-					anchor: MRE.TextAnchorLocation.MiddleCenter,
-					color: MRE.Color3.Yellow()
-				},
-				transform: {
-					local: { position: { x: 0.5, y: 0.55, z: 0 } }
-				}
-			}
-		})
-	}
-
-
 
 }
