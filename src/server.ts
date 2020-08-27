@@ -33,25 +33,26 @@ dotenv.config();
 // small delay is introduced allowing time for the debugger to attach before
 // the server starts accepting connections.
 async function runApp() {
-	console.log("starting app server")
-	const musicFileInfoArray : AudioFileInfo[] = []
+	//log that the app is starting
+	console.log("starting server")
 
+	//create the ata folder if it doesn't exist
 	if (!fs.existsSync('./data')){
 		fs.mkdirSync('./data');
 	}
 
 	//load playlist data from disk
 	if (fs.existsSync('./data/playlistData.json')){
-		const a = fs.readFileSync('./data/playlistData.json')
-		const b = JSON.parse(a.toString())
-		userRecords = new Map([...b])
+		const fileBuffer = fs.readFileSync('./data/playlistData.json')
+		const data = JSON.parse(fileBuffer.toString())
+		userRecords = new Map([...data])
 		console.log("user records loaded from disk")
 	}
 
 	//if one was not provided then we will need to set the base url
 	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1'
 
-	// Start listening for connections, and serve static files.
+	// Start listening for connections and serve static files
 	const server = new MRE.WebHost({
 		baseUrl: process.env.BASE_URL + ':3901',
 		baseDir: resolvePath(__dirname, '../public'),
@@ -60,21 +61,11 @@ async function runApp() {
 
 	console.log("server started: ", server)
 
-	//get a list of all the music files stored on the local disk
-	const fileList = fs.readdirSync('./public/music/')
-
-	//loop through the list and capture file properties
-	for (let index = 0; index < fileList.length; index++) {
-		const fileName = fileList[index]
-		const data = await musicMetadata.parseBuffer(fs.readFileSync(`./public/music/${fileName}`)) 
-		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:`${process.env.BASE_URL}/music/${fileName}`, fileName:fileName} )
-	}
-
 	// Handle new application sessions
-	console.log("launching app")
 	server.adapter.onConnection(context => new App(context, process.env.BASE_URL))
 	
 }
+
 
 // Check whether code is running in a debuggable watched filesystem
 // environment and if so, delay starting the app by one second to give
@@ -94,23 +85,28 @@ if (isDebug) {
 
 
 //===================
-// socketio setup
+//socketio setup
 //this is where we provide backend functionality for our app
 io.on('connection', (socket: SocketIO.Socket) => { 
+	//log when a client connects
 	console.log("client connected", socket.client.id)
 
-	//
+	//when a client requests a new dropbox folder url be assigned as thier playlist
+	//logg the request and begin processing the request
 	socket.on("readDropBoxFolder", (dropBoxfolderUrl, sessionId:string) => {
 		console.log(`getting dropBoxfolder for ${sessionId}: `, dropBoxfolderUrl)
 		processDropBoxfolderAndReply(dropBoxfolderUrl, socket, sessionId)
 	})
 
+	//when a session playlist is requested find it and deliver it to the client
 	socket.on('getSessionPlaylist', (sessionId:string) => {
-		const sid = sessionId 
 		const blank : AudioFileInfo[] = []
-		const playlist = userRecords.has(sid) ? userRecords.get(sid) : blank
-		socket.emit('deliverSessionPlaylist', playlist)
+		//if no list is found we wil need to return an empty one
+		const playlist = userRecords.has(sessionId) ? userRecords.get(sessionId) : blank
+		//logg the playlist
 		console.log(`sending playlist for ${sessionId}: `, playlist)
+		//deliver it to the client
+		socket.emit('deliverSessionPlaylist', playlist)
 	})
 
 })
@@ -133,8 +129,8 @@ const parseStream = async function (url:string): Promise<musicMetadata.IAudioMet
 }
 
 /**
- * Gathers .oop links from a dropbox folder, formats them for download, and puls all metadata
- * and send it back to the client
+ * Gathers .oop links from a dropbox folder, formats them for download,
+ * pulls all metadata, and then sends it back to the client
  * @param url 
  */
 const processDropBoxfolderAndReply = async function (url:string, socket:socketIO.Socket, sessionId:string) {
@@ -146,7 +142,8 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 	const matches = response.body.match(regex)
 	//get rid of any duplicates
 	const links = [... new Set(matches)]
-	console.log("links found: ", links)
+	//log all of the links
+	console.log(`${sessionId} links found: `, links)
 	//create the array for the file info we will find
 	const musicFileInfoArray : AudioFileInfo[] = []
 	//pull the metadata for each file and save it to the array
@@ -157,11 +154,9 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:link, fileName:''} )
 	}
 	//save the results for next time the user:session starts
-	console.log(`setting playlist for user:`, sessionId)
+	console.log(`setting playlist for: `, sessionId)
 	userRecords.set(sessionId, musicFileInfoArray)
-	// console.log("userRecords ", userRecords)
 	fs.writeFileSync('./data/playlistData.json', JSON.stringify([...userRecords], null, 2))
-
 
 	//send the final results back to the user
 	socket.emit('deliverReadDropBoxfolder', musicFileInfoArray)
