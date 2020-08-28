@@ -5,30 +5,36 @@ import AudioFileInfo from './types'
 
 export default class DBConnect{
 
-    pool = new Pool()
+    pool = new Pool({
+        user: process.env.PG_USER,
+        host: process.env.PG_HOST,
+        database: process.env.PG_DATABASE,
+        password: process.env.PG_PASSWORD,
+        port: parseInt( process.env.PG_PORT)
+    })
 
     /**
      * creates a db connection
      */
     constructor(){
-
+        //action to be take on pool connection
         this.pool.on('connect', (client)=>{ })
-
+        //db error action
         this.pool.on('error', (err, client) => {
             console.error('db error on idle client', err)
             process.exit(-1)
         })
-
+        //test the connection to the db on startup
         this.pool.connect().then(client => {
             return client
             .query('SELECT * FROM sessiondata WHERE id = $1', [1])
             .then(res => {
                 client.release()
-                console.log("test returned: ", res.rows[0])
+                console.log("db connection test returned: ", res.rows[0])
             })
             .catch(err => {
                 client.release()
-                console.log(err.stack)
+                console.log("db error:", err.stack)
             })
         })
     }

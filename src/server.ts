@@ -3,31 +3,46 @@
  * Licensed under the MIT License.
  */
 
-import * as MRE from '@microsoft/mixed-reality-extension-sdk';
-import dotenv from 'dotenv';
-import { resolve as resolvePath } from 'path';
-import App from './app';
+import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import * as musicMetadata from 'music-metadata'
-import fs from 'fs'
-import AudioFileInfo from './types'
+import { resolve as resolvePath } from 'path'
+import dotenv from 'dotenv'
 import socketIO from "socket.io"
 import fetch from 'node-fetch'
 import got from 'got'
-import DBConnect from './db';
+import fs from 'fs'
+
+import App from './app'
+import AudioFileInfo, { DefaultEnv } from './types'
+import DBConnect from './db'
 
 
+//if the .env configuration file doesn't exist create it using defaults
+if (!fs.existsSync('.env')) { 
+	const defaults = new DefaultEnv
+	let defaultString = ''
+	for (let key in defaults) {
+		if (Object.prototype.hasOwnProperty.call(defaults, key)) {
+			const value = defaults[key]
+			defaultString += `${key}=${value}\n`
+		}
+	}
+	fs.writeFileSync('.env', defaultString)
+	console.log("created the default .env")
+}
+
+//read the .env configuration
+dotenv.config()
+
+//create the socket server
 const io = socketIO()
+//create the db connection
 const db = new DBConnect
 
-
 /* eslint-disable no-console */
-process.on('uncaughtException', err => console.log('uncaughtException', err));
-process.on('unhandledRejection', reason => console.log('unhandledRejection', reason));
+process.on('uncaughtException', err => console.log('uncaughtException', err))
+process.on('unhandledRejection', reason => console.log('unhandledRejection', reason))
 /* eslint-enable no-console */
-
-// Read .env if file exists
-dotenv.config();
-
 
 
 // This function starts the MRE server. It will be called immediately unless
@@ -38,12 +53,9 @@ async function runApp() {
 	//log that the app is starting
 	console.log("starting server")
 
-	//if one was not provided then we will need to set the base url
-	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1'
-
 	// Start listening for connections and serve static files
 	const server = new MRE.WebHost({
-		baseUrl: process.env.BASE_URL + ':3901',
+		baseUrl: `${process.env.BASE_URL}:${parseInt(process.env.PORT)}`,
 		baseDir: resolvePath(__dirname, '../public'),
 		port: (process.env.PORT)
 	})
@@ -51,7 +63,9 @@ async function runApp() {
 	console.log("server started: ", server)
 
 	// Handle new application sessions
-	server.adapter.onConnection(context => new App(context, process.env.BASE_URL))
+	server.adapter.onConnection((context, params) => {
+		new App(context)
+	})
 	
 }
 
@@ -95,7 +109,7 @@ io.on('connection', (socket: SocketIO.Socket) => {
 			const blank : AudioFileInfo[] = []
 			const playlist = playlistData ? playlistData : blank
 			//log the playlist
-			console.log(`sending playlist for ${sessionId}: `, playlist)
+			console.log(`sending playlist for session: ${sessionId}: `, playlist)
 			//deliver it to the client
 			socket.emit('deliverSessionPlaylist', playlist)
 		})
@@ -154,5 +168,5 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 }
 
 
-io.listen( 3902 )
+io.listen( parseInt(process.env.PORT)+1 )
 

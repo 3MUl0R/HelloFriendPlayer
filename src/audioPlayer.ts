@@ -36,19 +36,20 @@ export default class SoundTest{
 	private volume = 0.04
 	private spread = 0.4
 	private rolloffStartDistance = 2.5
+
 	controls: ControlDefinition[] = []
 	prompt : Prompt
 
 
 
     /**
-     * create an instance
+     * creates an instance of the player
      * @param context 
-     * @param baseUrl 
+	 * @param socket
+	 * @param musicFileList
      */
 	constructor(
 			private context: MRE.Context, 
-			private baseUrl: string, 
 			private socket: SocketIOClient.Socket, 
 			private musicFileList: AudioFileInfo[] = []
 		){
@@ -77,7 +78,7 @@ export default class SoundTest{
      */
 	public async run(rootActor: MRE.Actor): Promise<boolean> {
 
-		this.prompt = new Prompt(this.context, this.baseUrl)
+		this.prompt = new Prompt(this.context)
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssets = new MRE.AssetContainer(this.context)
 

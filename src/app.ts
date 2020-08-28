@@ -26,17 +26,16 @@ export default class myApp{
 	 * @param context The MRE SDK context.
 	 * @param baseUrl The baseUrl to this project's `./public` folder
 	 */
-	constructor(private context: MRE.Context, private baseUrl: string) {
-		//log that the app is being started
-		console.log("starting socket connection at: ", `${this.baseUrl}:3902`)
+	constructor(private context: MRE.Context) {
 		//start the socket connection to the server
-		this.socket = socketIO(`${this.baseUrl}:3902`) 
+		this.socket = socketIO(`${process.env.BASE_URL}:${parseInt(process.env.PORT)+1}`) 
+
 		//create an audio player instance
-		this.audioPlayer = new AudioPlayer(this.context, this.baseUrl, this.socket)
+		this.audioPlayer = new AudioPlayer(this.context, this.socket)
 
         //initialize an assets container 
 		this.assets = new MRE.AssetContainer(context)
-
+		
 		//define actions for context events we're interested in
 		this.context.onStarted(() => this.started())
 		this.context.onUserJoined(user => {})
