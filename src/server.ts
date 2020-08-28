@@ -13,9 +13,11 @@ import AudioFileInfo from './types'
 import socketIO from "socket.io"
 import fetch from 'node-fetch'
 import got from 'got'
+import DBConnect from './db';
+
 
 const io = socketIO()
-var userRecords : Map<string, AudioFileInfo[]> = new Map
+const db = new DBConnect
 
 
 /* eslint-disable no-console */
@@ -35,19 +37,6 @@ dotenv.config();
 async function runApp() {
 	//log that the app is starting
 	console.log("starting server")
-
-	//create the ata folder if it doesn't exist
-	if (!fs.existsSync('./data')){
-		fs.mkdirSync('./data');
-	}
-
-	//load playlist data from disk
-	if (fs.existsSync('./data/playlistData.json')){
-		const fileBuffer = fs.readFileSync('./data/playlistData.json')
-		const data = JSON.parse(fileBuffer.toString())
-		userRecords = new Map([...data])
-		console.log("user records loaded from disk")
-	}
 
 	//if one was not provided then we will need to set the base url
 	if (!process.env.BASE_URL) process.env.BASE_URL = 'http://127.0.0.1'
@@ -100,13 +89,17 @@ io.on('connection', (socket: SocketIO.Socket) => {
 
 	//when a session playlist is requested find it and deliver it to the client
 	socket.on('getSessionPlaylist', (sessionId:string) => {
-		const blank : AudioFileInfo[] = []
-		//if no list is found we wil need to return an empty one
-		const playlist = userRecords.has(sessionId) ? userRecords.get(sessionId) : blank
-		//logg the playlist
-		console.log(`sending playlist for ${sessionId}: `, playlist)
-		//deliver it to the client
-		socket.emit('deliverSessionPlaylist', playlist)
+
+		db.getSessionList(sessionId).then(playlistData => {
+			//if no list is found we wil need to return an empty one
+			const blank : AudioFileInfo[] = []
+			const playlist = playlistData ? playlistData : blank
+			//log the playlist
+			console.log(`sending playlist for ${sessionId}: `, playlist)
+			//deliver it to the client
+			socket.emit('deliverSessionPlaylist', playlist)
+		})
+
 	})
 
 })
@@ -154,10 +147,8 @@ const processDropBoxfolderAndReply = async function (url:string, socket:socketIO
 		musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:link, fileName:''} )
 	}
 	//save the results for next time the user:session starts
-	console.log(`setting playlist for: `, sessionId)
-	userRecords.set(sessionId, musicFileInfoArray)
-	fs.writeFileSync('./data/playlistData.json', JSON.stringify([...userRecords], null, 2))
-
+	console.log(`saving playlist for: `, sessionId)
+	db.saveNewSessionList(sessionId, musicFileInfoArray)
 	//send the final results back to the user
 	socket.emit('deliverReadDropBoxfolder', musicFileInfoArray)
 }
