@@ -4,20 +4,9 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
-import SoundTest from './musicObjects'
-import QueVid from './queVid'
-import AudioFileInfo from './types'
+import AudioPlayer from './audioPlayer'
 import socketIO from "socket.io-client"
 
-const socket = socketIO("http://127.0.0.1:3902") 
-
-// socket.on('time', function(timeString:string) {
-//   console.log("server sent time function")
-// })
-
-// socket.on("message", function(data:string) {
-// 	console.log(data);
-// })
 
 
 /**
@@ -25,15 +14,11 @@ const socket = socketIO("http://127.0.0.1:3902")
  */
 export default class myApp{
 
-    // Container for preloaded object prefabs.
 	private assets: MRE.AssetContainer
 	private prefabs: { [key: string]: MRE.Prefab } = {}
-
-	public expectedResultDescription = "Sounds. Click buttons to toggle"
+	private socket : SocketIOClient.Socket
+	private audioPlayer : AudioPlayer
 	protected modsOnly = true
-
-	private musicObjects = new SoundTest(this.context, this.baseUrl, socket)
-	private queVid = new QueVid(this.context, this.baseUrl)
 
 
     /**
@@ -41,17 +26,19 @@ export default class myApp{
 	 * @param context The MRE SDK context.
 	 * @param baseUrl The baseUrl to this project's `./public` folder
 	 */
-	constructor(private context: MRE.Context, private baseUrl: string, private musicFileInfo: AudioFileInfo[]) {
+	constructor(private context: MRE.Context) {
+		//start the socket connection to the server
+		this.socket = socketIO(`${process.env.BASE_URL}:${parseInt(process.env.PORT)+1}`) 
+
+		//create an audio player instance
+		this.audioPlayer = new AudioPlayer(this.context, this.socket)
+
         //initialize an assets container 
 		this.assets = new MRE.AssetContainer(context)
-		// Hook the context events we're interested in
+		
+		//define actions for context events we're interested in
 		this.context.onStarted(() => this.started())
-
-		this.context.onUserJoined(user => {
-
-			// this.queVid.createUserControls(user)
-		})
-
+		this.context.onUserJoined(user => {})
 		this.context.onUserLeft(user => this.userLeft(user))
 		
 	}
@@ -84,13 +71,10 @@ export default class myApp{
     // use () => {} syntax here to get proper scope binding when called via setTimeout()
 	// if async is required, next line becomes private startedImpl = async () => {
 	private startedImpl = async () => {
-		const menu = MRE.Actor.Create(this.context, {})
+		const root = MRE.Actor.Create(this.context, {})
 		
         //do startup work here such as preloading objects or showing a menu
-		this.showHello(menu)
-
-		this.musicObjects.run(menu)
-		
+		this.audioPlayer.run(root)
     }
     
 
@@ -102,30 +86,5 @@ export default class myApp{
 
     }
     
-
-    /**
-	 * Display a friendly greeting
-	 */
-	private showHello(root: MRE.Actor) {
-
-		//create the label
-		MRE.Actor.Create(this.context, {
-			actor: {
-				parentId: root.id,
-				name: 'label',
-				text: {
-					contents: ''.padStart(8, ' ') + "HelloFriend",
-					height: 0.8,
-					anchor: MRE.TextAnchorLocation.MiddleCenter,
-					color: MRE.Color3.Yellow()
-				},
-				transform: {
-					local: { position: { x: 0.5, y: 0.55, z: 0 } }
-				}
-			}
-		})
-	}
-
-
 
 }

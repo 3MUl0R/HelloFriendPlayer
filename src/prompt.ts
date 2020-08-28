@@ -13,9 +13,8 @@ export default class Prompt {
     /**
      * create an instance
      * @param context 
-     * @param baseUrl 
      */
-    constructor(private context: MRE.Context, private baseUrl: string){
+    constructor(private context: MRE.Context){
 
     }
 

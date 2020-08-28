@@ -33,22 +33,23 @@ export default class SoundTest{
 	private currentsongIndex = 0
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
-	controls: ControlDefinition[] = []
 	private volume = 0.04
 	private spread = 0.4
 	private rolloffStartDistance = 2.5
 
+	controls: ControlDefinition[] = []
 	prompt : Prompt
 
 
+
     /**
-     * create an instance
+     * creates an instance of the player
      * @param context 
-     * @param baseUrl 
+	 * @param socket
+	 * @param musicFileList
      */
 	constructor(
 			private context: MRE.Context, 
-			private baseUrl: string, 
 			private socket: SocketIOClient.Socket, 
 			private musicFileList: AudioFileInfo[] = []
 		){
@@ -77,7 +78,7 @@ export default class SoundTest{
      */
 	public async run(rootActor: MRE.Actor): Promise<boolean> {
 
-		this.prompt = new Prompt(this.context, this.baseUrl)
+		this.prompt = new Prompt(this.context)
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssets = new MRE.AssetContainer(this.context)
 
@@ -129,6 +130,7 @@ export default class SoundTest{
 			//create the next sound if music has been loaded
 			if (this.musicFileList[this.currentsongIndex]){
 
+				//get the next track and create an mre.sound from it
 				let file = this.musicFileList[this.currentsongIndex]
 				console.log("playing next track: ", file)
 				const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
@@ -145,6 +147,8 @@ export default class SoundTest{
 						time: 0.0
 					}
 				)
+				//mark the state as playing
+				this.musicIsPlaying = true
 			}
 		}
 
@@ -182,16 +186,15 @@ export default class SoundTest{
 		}
 
 		//define controls for the stream
-        //each of these controls will have up/dn adjustment buttons
+		//each of these controls will have up/dn adjustment buttons
+		//these controls will be replaced later with a better interface
 		this.controls = [
 			{
 				label: "Playing", realtime: true, action: incr => {
-					if (incr !== 0) {
-						if (!this.musicIsPlaying) {
-							loadNextTrack()
-						} else {
-							cycleMusicState()
-						}
+					if (incr > 0) {
+						loadNextTrack()
+					}else if (incr < 0) {
+						cycleMusicState()
 					}
 					return this.musicIsPlaying.toString()
 				}
@@ -240,12 +243,10 @@ export default class SoundTest{
 			}
 		}))
 
-
-		
-
-		this.socket.on("deliverReadDropBoxfolder", (dropboxFileInfo:AudioFileInfo[]) => {
-			console.log("the returned file list: ", dropboxFileInfo)
-			this.musicFileList = dropboxFileInfo
+		//when the track list is delivered from the server set it as th active list
+		this.socket.on("deliverReadDropBoxfolder", (dropboxFileList:AudioFileInfo[]) => {
+			console.log("the returned file list: ", dropboxFileList)
+			this.musicFileList = dropboxFileList
 		})
 
 		return true
@@ -265,7 +266,7 @@ export default class SoundTest{
 		let i = 1
 		let label: MRE.Actor, button: MRE.Actor
 
-		//create the set new dropbox button
+		//create a button for setting a new dropbox folder
 		layout.addCell({
 			row: 0,
 			column: 0,
@@ -282,15 +283,17 @@ export default class SoundTest{
 			})
 		})
 
+		//set the action for the button
 		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
 			user.prompt("Enter your dropbox folder url", true).then(res => {
-				this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
+				if (res.submitted) this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
 			})
 			.catch(err => {
 				console.error(err)
 			})
 		})
 
+		//create a label for the set button
 		layout.addCell({
 			row: 0,
 			column: 2,
@@ -298,7 +301,7 @@ export default class SoundTest{
 			height: 0.25,
 			contents: label = MRE.Actor.Create(this.context, {
 				actor: {
-					name: 'setNewDropBoxButton',
+					name: 'setNewDropBoxLabel',
 					parentId: parent.id,
 					text: {
 						contents: 'Set dropbox folder',
@@ -311,6 +314,7 @@ export default class SoundTest{
 			})
 		})
 
+		//loop through the controls defined earlier. create buttons and set actions for each of them
 		for (const controlDef of controls) {
 			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
 			layout.addCell({
