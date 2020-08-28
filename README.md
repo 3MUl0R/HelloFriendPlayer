@@ -10,6 +10,8 @@ This is an MRE app written for AltspaceVR. It is an audio player for files store
 # How to use
 - An instance of this app is running at: ws://167.172.218.76:3901
 - Enter this address into an mre object in your altspace world
+- note: you can also visit the web page of the server for detailed instructions
+http://167.172.218.76
 
 # How to setup your own instance of this app
 - clone the project

@@ -44,11 +44,12 @@
     "verbose": true,
     "exec": "tsc --build && node .",
     "watch": [
-      "src/"
+      "src/",
+      "public/"
     ],
     "env": {
       "NODE_ENV": "development"
     },
-    "ext": "js,json,ts"
+    "ext": "*"
   }
 }
