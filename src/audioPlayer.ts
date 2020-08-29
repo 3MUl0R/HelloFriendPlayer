@@ -27,7 +27,7 @@ export default class AudioFilePlayer{
 	private assets: MRE.AssetContainer
 	private musicAssets: MRE.AssetContainer
 
-	private autoAdvanceIntervalSeconds = 2
+	private autoAdvanceIntervalSeconds = 1
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
 	private currentsongIndex = 0
@@ -40,6 +40,7 @@ export default class AudioFilePlayer{
 	private playPauseButton : MRE.Actor
 	private arrowMesh : MRE.Mesh
 	private squareMesh : MRE.Mesh
+	private useStreaming = false
 
 	controls: ControlDefinition[] = []
 	prompt : Prompt
@@ -102,6 +103,9 @@ export default class AudioFilePlayer{
 			this.loadNextTrack()
 		})
 
+		//default to paused
+        if (this.musicSoundInstance) this.musicSoundInstance.pause()
+		
 		//watch for the track duration to elapse. this will allow us to advance to the next song
 		const watchForTrackAutoAdvance = () => {
 			//integrate the elapsed play time
@@ -118,9 +122,6 @@ export default class AudioFilePlayer{
 		//start the track advance watch	
 		setInterval(watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
 		
-		//default to paused
-        if (this.musicSoundInstance) this.musicSoundInstance.pause()
-		
 		//use to adjust the state of the currently playing sound
 		const adjustSoundState = () => {
 			if (this.musicSoundInstance){
@@ -128,7 +129,6 @@ export default class AudioFilePlayer{
 					{
 						volume: this.volume,
 						looping: false,
-						doppler: 0.0,
 						spread: this.spread,
 						rolloffStartDistance: this.rolloffStartDistance
 					}
@@ -195,17 +195,40 @@ export default class AudioFilePlayer{
 	}
 
 	/**
-	 * play pause control
+	 * toggles the music state
 	 */
 	private cycleMusicState(){
 		//toggle the music state
 		this.musicIsPlaying = !this.musicIsPlaying
+		this.setMusicStateAppearance()
+	}
+
+	/**
+	 * specifically sets the state to playing
+	 */
+	private setMusicStateToPlaying(){
+		//toggle the music state
+		this.musicIsPlaying = true
+		this.setMusicStateAppearance()
+	}
+
+	/**
+	 * sets the label and button appearance and 
+	 */
+	private setMusicStateAppearance(){
 		//set the label with the state
 		this.playStateLabel.text.contents = this.getPlayStateAsString()
 		//set the appearance of the button
 		this.playPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
 		const zRotation = this.musicIsPlaying ? Math.PI * 0.25 : Math.PI * 0.5
 		this.playPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(0, 0, zRotation)
+		this.startStopTheParty()
+	}
+
+	/**
+	 * toggles the play/pause state of the music
+	 */
+	private startStopTheParty(){
 		//depending on the state control the party
 		if (this.musicIsPlaying) {
 			this.musicSoundInstance.resume()
@@ -258,23 +281,11 @@ export default class AudioFilePlayer{
 		//create the next sound if music has been loaded
 		if (this.musicFileList[this.currentsongIndex]){
 
-			//get the next track and create an mre.sound from it
-			let file = this.musicFileList[this.currentsongIndex]
-			console.log("playing next track: ", file)
-			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
-
-			//save the next sound into the active instance
-			this.musicSoundInstance = this.musicSpeaker.startSound(
-				currentMusicAsset.id,
-				{
-					volume: this.volume,
-					looping: false,
-					doppler: 0.0,
-					spread: 0.4,
-					rolloffStartDistance: 2.5,
-					time: 0.0
-				}
-			)
+			if (this.useStreaming){
+				this.createStreamInstance()
+			}else{
+				this.createAudioInstance()
+			}
 
 			//Leave the music in the same state
 			//if it wasn't marked as playing then stop the newly loaded song
@@ -282,6 +293,54 @@ export default class AudioFilePlayer{
 				this.musicSoundInstance.pause()
 			}
 		}
+	}
+
+	/**
+	 * use to create a streaming audio object
+	 */
+	private createStreamInstance(){
+		//get the next track and create a video stream from it
+		let file = this.musicFileList[this.currentsongIndex]
+		console.log("playing next track: ", file)
+		const currentMusicAsset = this.musicAssets.createVideoStream(file.name, { uri: file.url})
+
+		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
+			currentMusicAsset.id,
+			{
+				volume: this.volume,
+				looping: false,
+				spread: 1.0,
+				rolloffStartDistance: 2.5,
+				time: 0.0,
+				visible: false
+			}
+		)
+
+		//creating a stream always results in the music playing
+		this.setMusicStateToPlaying()
+	}
+
+	/**
+	 * use to create a file based audio object
+	 */
+	private createAudioInstance(){
+		//get the next track and create an mre.sound from it
+		let file = this.musicFileList[this.currentsongIndex]
+		console.log("playing next track: ", file)
+		const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+
+		//save the next sound into the active instance
+		this.musicSoundInstance = this.musicSpeaker.startSound(
+			currentMusicAsset.id,
+			{
+				volume: this.volume,
+				looping: false,
+				doppler: 0.0,
+				spread: 0.4,
+				rolloffStartDistance: 2.5,
+				time: 0.0
+			}
+		)
 	}
 
 	
