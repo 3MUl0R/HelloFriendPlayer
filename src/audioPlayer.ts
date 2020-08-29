@@ -38,8 +38,13 @@ export default class AudioFilePlayer{
 	private rolloffStartDistance = 2.5
 	private playStateLabel : MRE.Actor
 	private playPauseButton : MRE.Actor
+	private trackNameLabel : MRE.Actor
 	private arrowMesh : MRE.Mesh
 	private squareMesh : MRE.Mesh
+	private stopButtonMaterial : MRE.Material
+	private playButtonMaterial : MRE.Material
+	private generalButtonMaterial : MRE.Material
+	//if streaming is used on files then the audio is not syncd between users
 	private useStreaming = false
 
 	controls: ControlDefinition[] = []
@@ -165,9 +170,13 @@ export default class AudioFilePlayer{
 			{
 				label: "Rolloff", action: incr => {
 					if (incr > 0) {
+						//if we are over 1 use a larger increment value
 						this.rolloffStartDistance += this.rolloffStartDistance > 1 ? 1 : 0.1
 					} else if (incr < 0) {
-						this.rolloffStartDistance = this.rolloffStartDistance <= 0.3 ? 0.2 : this.rolloffStartDistance - 0.1
+						//if we are over 1 use a larger increment value
+						this.rolloffStartDistance -= this.rolloffStartDistance > 1 ? 1 : 0.1
+						//limit it to a minimum value
+						this.rolloffStartDistance = this.rolloffStartDistance < 0.2 ? 0.2 : this.rolloffStartDistance
                     }
 					adjustSoundState()
 					return this.rolloffStartDistance.toPrecision(2).toString()
@@ -181,7 +190,16 @@ export default class AudioFilePlayer{
 				name: 'controlsParent',
 				parentId: rootActor.id,
 				appearance:{ enabled: new MRE.GroupMask( this.context, ['moderator'])},
-				transform: { local: { position: { x: 0.6, y: -1, z: -1 } } }
+				transform: { local: { position: { x: 0, y: -1, z: 0 } } }
+			}
+		}))
+
+		this.createDisplay(MRE.Actor.Create(this.context, {
+			actor: {
+				name: 'displayParent',
+				parentId: rootActor.id,
+				appearance:{ enabled: true},
+				transform: { local: { position: { x: 0, y: -0.2, z: 0 } } }
 			}
 		}))
 
@@ -220,6 +238,7 @@ export default class AudioFilePlayer{
 		this.playStateLabel.text.contents = this.getPlayStateAsString()
 		//set the appearance of the button
 		this.playPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
+		this.playPauseButton.appearance.materialId = this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id
 		const zRotation = this.musicIsPlaying ? Math.PI * 0.25 : Math.PI * 0.5
 		this.playPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(0, 0, zRotation)
 		this.startStopTheParty()
@@ -293,6 +312,9 @@ export default class AudioFilePlayer{
 				this.musicSoundInstance.pause()
 			}
 		}
+
+		//set the track name label
+		this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex].name
 	}
 
 	/**
@@ -343,6 +365,36 @@ export default class AudioFilePlayer{
 		)
 	}
 
+	/**
+	 * creates a display panel visible to all users
+	 * @param parent 
+	 */
+	private createDisplay(parent: MRE.Actor){
+		const layout = new MRE.PlanarGridLayout(parent)
+		let currentLayoutRow = 0
+
+		//create a label for the play/pause button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: this.trackNameLabel = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'trackNameLabel',
+					parentId: parent.id,
+					text: {
+						contents: this.musicFileList[this.currentsongIndex] ? this.musicFileList[this.currentsongIndex].name : 'load track',
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Center,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
+	}
+
 	
 	/**
      * loops through an array of controls adding up/dn buttons for each
@@ -352,14 +404,178 @@ export default class AudioFilePlayer{
 	private createControls(controls: ControlDefinition[], parent: MRE.Actor) {
 		this.arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
 		this.squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
+		this.stopButtonMaterial = this.assets.createMaterial('stopButtonMaterial', {color:{a:1,r:1,g:0,b:0}, emissiveColor:{r:1,g:0,b:0}})
+		this.playButtonMaterial = this.assets.createMaterial('playButtonMaterial', {color:{a:1,r:0,g:1,b:0}, emissiveColor:{r:0,g:1,b:0}})
+		this.generalButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0,g:115,b:255}, emissiveColor:{r:0,g:0,b:255}})
 		const layout = new MRE.PlanarGridLayout(parent)
 
-		let i = 2
+		let currentLayoutRow = 0
 		let label: MRE.Actor, button: MRE.Actor
+
+		//play/pause and skip controls
+		//create a button for setting a new dropbox folder
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: this.playPauseButton = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'playPauseButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.playButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		this.playPauseButton.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.cycleMusicState()
+		})
+
+		//create a label for the play/pause button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.3,
+			height: 0.25,
+			contents: this.playStateLabel = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'playPauseLabel',
+					parentId: parent.id,
+					text: {
+						contents: this.getPlayStateAsString(),
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Center,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
+
+		//create the skip forward button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 3,
+			width: 0.05,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'skipForwardButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.skipForward()
+		})
+
+		//create the skip back button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'skipBackwardButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, -Math.PI*.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.skipBackward()
+		})
+
+		//next row
+		currentLayoutRow += 1
+
+		//loop through the controls defined earlier. 
+		//create buttons and set actions for each of them
+		for (const controlDef of controls) {
+			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
+			layout.addCell({
+				row: currentLayoutRow,
+				column: 1,
+				width: 0.6,
+				height: 0.25,
+				contents: label = MRE.Actor.Create(this.context, {
+					actor: {
+						name: `${controlDef.label}-label`,
+						parentId: parent.id,
+						text: {
+							contents: `${controlDef.label}:\n${controlDef.action(0)}`,
+							height: 0.1,
+							anchor: MRE.TextAnchorLocation.MiddleCenter,
+							justify: MRE.TextJustify.Center,
+							color: MRE.Color3.FromInts(255, 200, 255)
+						}
+					}
+				})
+			})
+			controlDef.labelActor = label
+
+			layout.addCell({
+				row: currentLayoutRow,
+				column: 0,
+				width: 0.3,
+				height: 0.25,
+				contents: less = MRE.Actor.Create(this.context, {
+					actor: {
+						name: `${controlDef.label}-less`,
+						parentId: parent.id,
+						appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+						collider: { geometry: { shape: MRE.ColliderType.Auto } },
+						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
+					}
+				})
+			})
+
+			layout.addCell({
+				row: currentLayoutRow,
+				column: 2,
+				width: 0.3,
+				height: 0.25,
+				contents: more = MRE.Actor.Create(this.context, {
+					actor: {
+						name: `${controlDef.label}-more`,
+						parentId: parent.id,
+						appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+						collider: { geometry: { shape: MRE.ColliderType.Auto } },
+						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
+					}
+				})
+			})
+
+			less.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
+			})
+
+			more.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(1)}`
+			})
+
+			//next row
+			currentLayoutRow++
+		}
+
 
 		//create a button for setting a new dropbox folder
 		layout.addCell({
-			row: 0,
+			row: currentLayoutRow,
 			column: 0,
 			width: 0.3,
 			height: 0.25,
@@ -386,7 +602,7 @@ export default class AudioFilePlayer{
 
 		//create a label for the set folder button
 		layout.addCell({
-			row: 0,
+			row: currentLayoutRow,
 			column: 1,
 			width: 0.3,
 			height: 0.25,
@@ -404,162 +620,6 @@ export default class AudioFilePlayer{
 				}
 			})
 		})
-
-		//play/pause and skip controls
-		//create a button for setting a new dropbox folder
-		layout.addCell({
-			row: 1,
-			column: 0,
-			width: 0.3,
-			height: 0.25,
-			contents: this.playPauseButton = MRE.Actor.Create(this.context, {
-				actor: {
-					name: 'playPauseButton',
-					parentId: parent.id,
-					appearance: { meshId: this.arrowMesh.id },
-					collider: { geometry: { shape: MRE.ColliderType.Auto } },
-					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
-				}
-			})
-		})
-
-		//set the action for the button
-		this.playPauseButton.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
-			this.cycleMusicState()
-		})
-
-		//create a label for the play/pause button
-		layout.addCell({
-			row: 1,
-			column: 1,
-			width: 0.3,
-			height: 0.25,
-			contents: this.playStateLabel = MRE.Actor.Create(this.context, {
-				actor: {
-					name: 'playPauseLabel',
-					parentId: parent.id,
-					text: {
-						contents: this.getPlayStateAsString(),
-						height: 0.1,
-						anchor: MRE.TextAnchorLocation.MiddleCenter,
-						justify: MRE.TextJustify.Center,
-						color: MRE.Color3.FromInts(255, 200, 255)
-					}
-				}
-			})
-		})
-
-		//create the skip forward button
-		layout.addCell({
-			row: 1,
-			column: 3,
-			width: 0.05,
-			height: 0.25,
-			contents: button = MRE.Actor.Create(this.context, {
-				actor: {
-					name: 'skipForwardButton',
-					parentId: parent.id,
-					appearance: { meshId: this.arrowMesh.id },
-					collider: { geometry: { shape: MRE.ColliderType.Auto } },
-					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
-				}
-			})
-		})
-
-		//set the action for the button
-		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
-			this.skipForward()
-		})
-
-		//create the skip back button
-		layout.addCell({
-			row: 1,
-			column: 2,
-			width: 0.3,
-			height: 0.25,
-			contents: button = MRE.Actor.Create(this.context, {
-				actor: {
-					name: 'skipBackwardButton',
-					parentId: parent.id,
-					appearance: { meshId: this.arrowMesh.id },
-					collider: { geometry: { shape: MRE.ColliderType.Auto } },
-					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, -Math.PI*.5) } }
-				}
-			})
-		})
-
-		//set the action for the button
-		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
-			this.skipBackward()
-		})
-
-		//loop through the controls defined earlier. 
-		//create buttons and set actions for each of them
-		for (const controlDef of controls) {
-			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
-			layout.addCell({
-				row: i,
-				column: 1,
-				width: 0.6,
-				height: 0.25,
-				contents: label = MRE.Actor.Create(this.context, {
-					actor: {
-						name: `${controlDef.label}-label`,
-						parentId: parent.id,
-						text: {
-							contents: `${controlDef.label}:\n${controlDef.action(0)}`,
-							height: 0.1,
-							anchor: MRE.TextAnchorLocation.MiddleCenter,
-							justify: MRE.TextJustify.Center,
-							color: MRE.Color3.FromInts(255, 200, 255)
-						}
-					}
-				})
-			})
-			controlDef.labelActor = label
-
-			layout.addCell({
-				row: i,
-				column: 0,
-				width: 0.3,
-				height: 0.25,
-				contents: less = MRE.Actor.Create(this.context, {
-					actor: {
-						name: `${controlDef.label}-less`,
-						parentId: parent.id,
-						appearance: { meshId: this.arrowMesh.id },
-						collider: { geometry: { shape: MRE.ColliderType.Auto } },
-						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
-					}
-				})
-			})
-
-			layout.addCell({
-				row: i,
-				column: 2,
-				width: 0.3,
-				height: 0.25,
-				contents: more = MRE.Actor.Create(this.context, {
-					actor: {
-						name: `${controlDef.label}-more`,
-						parentId: parent.id,
-						appearance: { meshId: this.arrowMesh.id },
-						collider: { geometry: { shape: MRE.ColliderType.Auto } },
-						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
-					}
-				})
-			})
-
-			less.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
-				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
-			})
-
-			more.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
-				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(1)}`
-			})
-
-			i++
-		}
 
 		layout.applyLayout()
 

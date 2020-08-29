@@ -76,6 +76,20 @@ export default class SocketServer{
         return metadata
     }
 
+    /**
+     * pulls the file name from the end of a dropbox link
+     * @param url 
+     */
+    private extractFileName(url:string):string{
+        const splitString = url.split('/')
+        let name = splitString[splitString.length - 1]
+        name = name.replace(/\.ogg/gmi, '')
+        name = name.replace(/%20/gmi, ' ')
+        name = name.replace(/%5b/gmi, '[')
+        name = name.replace(/%5d/gmi, ']')
+        return name
+    }
+
     
     /**
      * Gathers .oop links from a dropbox folder, formats them for download,
@@ -102,7 +116,12 @@ export default class SocketServer{
             var link = links[index]
             link = link.replace('www.dropbox', 'dl.dropboxusercontent')
             const data = await this.parseStream(link)
-            musicFileInfoArray.push( {name: data.common.title, duration: data.format.duration, url:link, fileName:''} )
+            musicFileInfoArray.push( {
+                name: data.common.title=='' ? data.common.title : this.extractFileName(link), 
+                duration: data.format.duration, 
+                url:link, 
+                fileName: this.extractFileName(link)
+            })
         }
         //save the results for next time the user:session starts
         console.log(`saving playlist for: `, sessionId)
