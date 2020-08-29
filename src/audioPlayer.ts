@@ -40,7 +40,7 @@ export default class AudioFilePlayer{
 	private playPauseButton : MRE.Actor
 	private arrowMesh : MRE.Mesh
 	private squareMesh : MRE.Mesh
-	private useStreaming = false
+	private useStreaming = true
 
 	controls: ControlDefinition[] = []
 	prompt : Prompt
@@ -165,9 +165,9 @@ export default class AudioFilePlayer{
 			{
 				label: "Rolloff", action: incr => {
 					if (incr > 0) {
-						this.rolloffStartDistance += .1
+						this.rolloffStartDistance += this.rolloffStartDistance > 1 ? 1 : 0.1
 					} else if (incr < 0) {
-						this.rolloffStartDistance = this.rolloffStartDistance <= 0.3 ? 0.2 : this.rolloffStartDistance - .1
+						this.rolloffStartDistance = this.rolloffStartDistance <= 0.3 ? 0.2 : this.rolloffStartDistance - 0.1
                     }
 					adjustSoundState()
 					return this.rolloffStartDistance.toPrecision(2).toString()
@@ -311,7 +311,7 @@ export default class AudioFilePlayer{
 				looping: false,
 				spread: 1.0,
 				rolloffStartDistance: 2.5,
-				time: 0.0,
+				time: this.elapsedPlaySeconds,
 				visible: false
 			}
 		)
@@ -338,7 +338,7 @@ export default class AudioFilePlayer{
 				doppler: 0.0,
 				spread: 0.4,
 				rolloffStartDistance: 2.5,
-				time: 0.0
+				time: this.elapsedPlaySeconds
 			}
 		)
 	}
