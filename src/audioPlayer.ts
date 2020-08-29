@@ -38,12 +38,19 @@ export default class AudioFilePlayer{
 	private rolloffStartDistance = 2.5
 	private playStateLabel : MRE.Actor
 	private playPauseButton : MRE.Actor
+	private wristPlayPauseButton : MRE.Actor
 	private trackNameLabel : MRE.Actor
+	private volumeLabel : MRE.Actor
 	private arrowMesh : MRE.Mesh
 	private squareMesh : MRE.Mesh
 	private stopButtonMaterial : MRE.Material
 	private playButtonMaterial : MRE.Material
 	private generalButtonMaterial : MRE.Material
+	private volumeButtonMaterial : MRE.Material
+	private skipButtonMaterial : MRE.Material
+	private wristControlsRootPose = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
+	private wristControlsScale = 0.2
+
 	//if streaming is used on files then the audio is not syncd between users
 	private useStreaming = false
 
@@ -71,16 +78,8 @@ export default class AudioFilePlayer{
 	 */
 	public cleanup() {
 		this.assets.unload()
-		this.cleanUpMusic()
-	}
-	
-	/**
-	 * unload the music asset container
-	 */
-	public cleanUpMusic() {
 		this.musicAssets.unload()
 	}
-	
 
     /**
      * Create the player and controls in world
@@ -126,35 +125,13 @@ export default class AudioFilePlayer{
 
 		//start the track advance watch	
 		setInterval(watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
-		
-		//use to adjust the state of the currently playing sound
-		const adjustSoundState = () => {
-			if (this.musicSoundInstance){
-				this.musicSoundInstance.setState(
-					{
-						volume: this.volume,
-						looping: false,
-						spread: this.spread,
-						rolloffStartDistance: this.rolloffStartDistance
-					}
-				)
-			}
-		}
 
 		//define controls for the stream
 		//each of these controls will have up/dn adjustment buttons
 		//these controls will be replaced later with a better interface
 		this.controls = [
 			{
-				label: "Volume", action: incr => {
-					if (incr > 0) {
-						this.volume = this.volume >= 0.99 ? 1.0 : this.volume + .01
-					} else if (incr < 0) {
-						this.volume = this.volume <= 0.01 ? 0.0 : this.volume - .01
-					}
-					adjustSoundState()
-					return Math.floor(this.volume * 100) + "%"
-				}
+				label: "Volume", action: incr => this.setVolume(incr)
 			},
 			{
 				label: "Spread", action: incr => {
@@ -163,7 +140,7 @@ export default class AudioFilePlayer{
 					} else if (incr < 0) {
 						this.spread = this.spread <= 0.1 ? 0.0 : this.spread - .1
 					}
-					adjustSoundState()
+					this.adjustSoundState()
 					return Math.floor(this.spread * 100) + "%"
 				}
 			},
@@ -178,7 +155,7 @@ export default class AudioFilePlayer{
 						//limit it to a minimum value
 						this.rolloffStartDistance = this.rolloffStartDistance < 0.2 ? 0.2 : this.rolloffStartDistance
                     }
-					adjustSoundState()
+					this.adjustSoundState()
 					return this.rolloffStartDistance.toPrecision(2).toString()
 				}
 			},
@@ -212,6 +189,28 @@ export default class AudioFilePlayer{
 		return true
 	}
 
+
+	/**
+	 * use to adjust and set the volume
+	 * @param incr 
+	 */
+	private setVolume = (incr:number) => {
+		//change the volume if an up or down direction was requested
+		if (incr > 0) {
+			this.volume = this.volume >= 0.99 ? 1.0 : this.volume + .01
+		} else if (incr < 0) {
+			this.volume = this.volume <= 0.01 ? 0.0 : this.volume - .01
+		}
+		//format the volume in to a percentage string
+		const volumeValue = `${Math.floor(this.volume * 100)}%`
+		//once the volume label has been created set the label value when changes are made
+		if (this.volumeLabel) this.volumeLabel.text.contents = `Volume:\n${volumeValue}`
+		//commit the changes to the actual sound object
+		this.adjustSoundState()
+		//return the value to be used when the label is first created
+		return volumeValue
+	}
+
 	/**
 	 * toggles the music state
 	 */
@@ -236,11 +235,27 @@ export default class AudioFilePlayer{
 	private setMusicStateAppearance(){
 		//set the label with the state
 		this.playStateLabel.text.contents = this.getPlayStateAsString()
-		//set the appearance of the button
+		
+		//set the appearance of both the panel and wrist controls
 		this.playPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
 		this.playPauseButton.appearance.materialId = this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id
-		const zRotation = this.musicIsPlaying ? Math.PI * 0.25 : Math.PI * 0.5
-		this.playPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(0, 0, zRotation)
+		this.playPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(
+			0, 
+			0, 
+			this.musicIsPlaying ? Math.PI * 0.25 : Math.PI * 0.5
+		)
+
+		//if the wrist controls have been created then we need to modify them aswell
+		if (this.wristPlayPauseButton){
+			this.wristPlayPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
+			this.wristPlayPauseButton.appearance.materialId = this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id
+			this.wristPlayPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(
+				this.wristControlsRootPose.ori.x, 
+				this.wristControlsRootPose.ori.y, 
+				this.musicIsPlaying ? Math.PI * 0.25 : 0.5
+			)
+		}
+		
 		this.startStopTheParty()
 	}
 
@@ -284,7 +299,7 @@ export default class AudioFilePlayer{
 	/**
 	 * clear the current track and load the next one
 	 */
-	private loadNextTrack(){
+	private async loadNextTrack(){
 		//reset the elapsed time
 		this.elapsedPlaySeconds = 0
 
@@ -292,7 +307,7 @@ export default class AudioFilePlayer{
 		if (this.musicSoundInstance) this.musicSoundInstance.stop()
 
 		//unload the current music so we don't use all the memory
-		this.cleanUpMusic()
+		this.musicAssets.unload()
 
 		//recreate the asset container
 		this.musicAssets = new MRE.AssetContainer(this.context)
@@ -301,9 +316,9 @@ export default class AudioFilePlayer{
 		if (this.musicFileList[this.currentsongIndex]){
 
 			if (this.useStreaming){
-				this.createStreamInstance()
+				await this.createStreamInstance()
 			}else{
-				this.createAudioInstance()
+				await this.createAudioInstance()
 			}
 
 			//Leave the music in the same state
@@ -317,10 +332,27 @@ export default class AudioFilePlayer{
 		this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex].name
 	}
 
+
+	/**
+	 * use to adjust the state of the currently playing sound
+	 */
+	private adjustSoundState(){
+		if (this.musicSoundInstance){
+			this.musicSoundInstance.setState(
+				{
+					volume: this.volume,
+					looping: false,
+					spread: this.spread,
+					rolloffStartDistance: this.rolloffStartDistance
+				}
+			)
+		}
+	}
+
 	/**
 	 * use to create a streaming audio object
 	 */
-	private createStreamInstance(){
+	private async createStreamInstance(){
 		//get the next track and create a video stream from it
 		let file = this.musicFileList[this.currentsongIndex]
 		console.log("playing next track: ", file)
@@ -345,7 +377,7 @@ export default class AudioFilePlayer{
 	/**
 	 * use to create a file based audio object
 	 */
-	private createAudioInstance(){
+	private async createAudioInstance(){
 		//get the next track and create an mre.sound from it
 		let file = this.musicFileList[this.currentsongIndex]
 		console.log("playing next track: ", file)
@@ -407,6 +439,8 @@ export default class AudioFilePlayer{
 		this.stopButtonMaterial = this.assets.createMaterial('stopButtonMaterial', {color:{a:1,r:1,g:0,b:0}, emissiveColor:{r:1,g:0,b:0}})
 		this.playButtonMaterial = this.assets.createMaterial('playButtonMaterial', {color:{a:1,r:0,g:1,b:0}, emissiveColor:{r:0,g:1,b:0}})
 		this.generalButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0,g:115,b:255}, emissiveColor:{r:0,g:0,b:255}})
+		this.volumeButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0.5,g:50,b:50}, emissiveColor:{r:0.5,g:50,b:50}})
+		this.skipButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0,g:115,b:255}, emissiveColor:{r:0,g:115,b:255}})
 		const layout = new MRE.PlanarGridLayout(parent)
 
 		let currentLayoutRow = 0
@@ -466,7 +500,7 @@ export default class AudioFilePlayer{
 				actor: {
 					name: 'skipForwardButton',
 					parentId: parent.id,
-					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
 					collider: { geometry: { shape: MRE.ColliderType.Auto } },
 					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
 				}
@@ -488,7 +522,7 @@ export default class AudioFilePlayer{
 				actor: {
 					name: 'skipBackwardButton',
 					parentId: parent.id,
-					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
 					collider: { geometry: { shape: MRE.ColliderType.Auto } },
 					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, -Math.PI*.5) } }
 				}
@@ -503,7 +537,7 @@ export default class AudioFilePlayer{
 		//next row
 		currentLayoutRow += 1
 
-		//loop through the controls defined earlier. 
+		//loop through the controls defined earlier
 		//create buttons and set actions for each of them
 		for (const controlDef of controls) {
 			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
@@ -527,6 +561,9 @@ export default class AudioFilePlayer{
 				})
 			})
 			controlDef.labelActor = label
+
+			//save the volume label so it can be modified as needed
+			if (controlDef.label == 'Volume') this.volumeLabel = label
 
 			layout.addCell({
 				row: currentLayoutRow,
@@ -559,6 +596,12 @@ export default class AudioFilePlayer{
 					}
 				})
 			})
+
+			//if these are the volume buttons assign thier material
+			if (controlDef.label == 'Volume'){
+				less.appearance.materialId = this.volumeButtonMaterial.id
+				more.appearance.materialId = this.volumeButtonMaterial.id
+			}
 
 			less.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
 				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
@@ -611,7 +654,53 @@ export default class AudioFilePlayer{
 					name: 'setNewDropBoxLabel',
 					parentId: parent.id,
 					text: {
-						contents: '      Set dropbox folder',
+						contents: '       Set dropbox folder',
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Right,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
+
+		//next row
+		currentLayoutRow += 1
+
+		//create a button to spawn controls on the users wrist
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'spawnControlsButton',
+					parentId: parent.id,
+					appearance: { meshId: this.squareMesh.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.spawnUserControls(user)
+		})
+
+		//create a label for the spawn button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.3,
+			height: 0.25,
+			contents: label = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'spawnWristControlsLabel',
+					parentId: parent.id,
+					text: {
+						contents: '            Spawn Wrist Controls',
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Right,
@@ -622,6 +711,155 @@ export default class AudioFilePlayer{
 		})
 
 		layout.applyLayout()
+
+	}
+
+
+	/**
+	 * spawn controls on the users wrist
+	 * @param user 
+	 */
+	spawnUserControls(user: MRE.User) {
+
+		this.wristPlayPauseButton = MRE.Actor.Create(this.context, {
+			actor: {
+				appearance: { meshId: this.arrowMesh.id, materialId: this.playButtonMaterial.id },
+				collider: { geometry: { shape: MRE.ColliderType.Auto } },
+				transform: {
+					local: {
+						position: { 
+							x: this.wristControlsRootPose.pos.x + -0.05, 
+							y: this.wristControlsRootPose.pos.y + 0.05, 
+							z: this.wristControlsRootPose.pos.z + -0.115 
+						},
+						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, 0.5),
+						scale: { x: this.wristControlsScale, y: this.wristControlsScale, z: 0.5 },
+					}
+				},
+				attachment: {
+					attachPoint: "left-hand",
+					userId: user.id
+				}
+			}
+		})
+
+		const volumeUpButton = MRE.Actor.Create(this.context, {
+			actor: {
+				appearance: { meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id },
+				collider: { geometry: { shape: MRE.ColliderType.Auto } },
+				transform: {
+					local: {
+						position: { 
+							x: this.wristControlsRootPose.pos.x + -0.05, 
+							y: this.wristControlsRootPose.pos.y + 0.05, 
+							z: this.wristControlsRootPose.pos.z + -0.075 
+						},
+						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, 0),
+						scale: { x: this.wristControlsScale, y: this.wristControlsScale, z: 0.5 },
+					}
+				},
+				attachment: {
+					attachPoint: "left-hand",
+					userId: user.id
+				}
+			}
+		})
+
+		const volumeDnButton = MRE.Actor.Create(this.context, {
+			actor: {
+				appearance: { meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id },
+				collider: { geometry: { shape: MRE.ColliderType.Auto } },
+				transform: {
+					local: {
+						position: { 
+							x: this.wristControlsRootPose.pos.x + -0.05, 
+							y: this.wristControlsRootPose.pos.y + 0.05, 
+							z: this.wristControlsRootPose.pos.z + -0.0465 
+						},
+						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, 1),
+						scale: { x: this.wristControlsScale, y: this.wristControlsScale, z: 0.5 },
+					}
+				},
+				attachment: {
+					attachPoint: "left-hand",
+					userId: user.id
+				},
+				grabbable:true
+			}
+		})
+
+		const skipBackButton = MRE.Actor.Create(this.context, {
+			actor: {
+				appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
+				collider: { geometry: { shape: MRE.ColliderType.Auto } },
+				transform: {
+					local: {
+						position: { 
+							x: this.wristControlsRootPose.pos.x + -0.05, 
+							y: this.wristControlsRootPose.pos.y + 0.05, 
+							z: this.wristControlsRootPose.pos.z + -0.005 
+						},
+						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, -0.5),
+						scale: { x: this.wristControlsScale, y: this.wristControlsScale, z: 0.5 },
+					}
+				},
+				attachment: {
+					attachPoint: "left-hand",
+					userId: user.id
+				}
+			}
+		})
+
+		const skipForwardButton = MRE.Actor.Create(this.context, {
+			actor: {
+				appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
+				collider: { geometry: { shape: MRE.ColliderType.Auto } },
+				transform: {
+					local: {
+						position: { 
+							x: this.wristControlsRootPose.pos.x + -0.05, 
+							y: this.wristControlsRootPose.pos.y + 0.05, 
+							z: this.wristControlsRootPose.pos.z + 0.02 
+						},
+						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, 0.5),
+						scale: { x: this.wristControlsScale, y: this.wristControlsScale, z: 0.5 },
+					}
+				},
+				attachment: {
+					attachPoint: "left-hand",
+					userId: user.id
+				}
+			}
+		})
+
+
+		//define behaviors for all of the buttons 
+
+		const volumeUpButtonBehavior = volumeUpButton.setBehavior(MRE.ButtonBehavior)
+		volumeUpButtonBehavior.onButton("pressed", () => {
+			this.setVolume(1)
+		})
+
+		const volumeDnButtonBehavior = volumeDnButton.setBehavior(MRE.ButtonBehavior)
+		volumeDnButtonBehavior.onButton("pressed", () => {
+			this.setVolume(-1)
+		})
+
+		const skipForwardButtonBehavior = skipForwardButton.setBehavior(MRE.ButtonBehavior)
+		skipForwardButtonBehavior.onButton("pressed", () => {
+			this.skipForward()
+		})
+
+		const skipBackButtonBehavior = skipBackButton.setBehavior(MRE.ButtonBehavior)
+		skipBackButtonBehavior.onButton("pressed", () => {
+			this.skipBackward()
+		})
+
+		const playPauseButtonBehavior = this.wristPlayPauseButton.setBehavior(MRE.ButtonBehavior)
+		playPauseButtonBehavior.onButton("pressed", () => {
+			this.cycleMusicState()
+		})
+
 
 	}
 
