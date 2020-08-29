@@ -38,7 +38,7 @@ export default class myApp{
 		
 		//define actions for context events we're interested in
 		this.context.onStarted(() => this.started())
-		this.context.onUserJoined(user => {})
+		this.context.onUserJoined(user => this.userJoined(user))
 		this.context.onUserLeft(user => this.userLeft(user))
 		
 	}
@@ -82,9 +82,21 @@ export default class myApp{
 	 * Called when a user leaves the application 
 	 * @param user The user that bailed
 	 */
-	private userLeft(user: MRE.User) {
+	private userLeft(user: MRE.User){
 
-    }
+	}
+	
+	/**
+	 * call when a user joins the application
+	 * @param user 
+	 */
+	private userJoined(user: MRE.User){
+		//if the user is a moderator add them to the group mask
+		//this allows them to see all controls for that group
+		if (user.properties['altspacevr-roles'].includes('moderator')){ 
+			user.groups.set(['moderator'])
+		}
+	}
     
 
 }

@@ -21,7 +21,7 @@ interface ControlDefinition {
 }
 
 
-export default class SoundTest{
+export default class AudioFilePlayer{
 
 	protected modsOnly = true
 	private assets: MRE.AssetContainer
@@ -36,6 +36,10 @@ export default class SoundTest{
 	private volume = 0.04
 	private spread = 0.4
 	private rolloffStartDistance = 2.5
+	private playStateLabel : MRE.Actor
+	private playPauseButton : MRE.Actor
+	private arrowMesh : MRE.Mesh
+	private squareMesh : MRE.Mesh
 
 	controls: ControlDefinition[] = []
 	prompt : Prompt
@@ -94,6 +98,8 @@ export default class SoundTest{
 		//when the playlist is returned capture it
 		this.socket.on("deliverSessionPlaylist", (playlist:AudioFileInfo[]) => {
 			this.musicFileList = playlist
+			//load the first sound into the object
+			this.loadNextTrack()
 		})
 
 		//watch for the track duration to elapse. this will allow us to advance to the next song
@@ -103,73 +109,18 @@ export default class SoundTest{
 
 			//if music has been loaded we can check for duration to be elapsed
 			if (this.musicFileList[this.currentsongIndex]){
-				if (this.elapsedPlaySeconds > this.musicFileList[this.currentsongIndex].duration + 2) loadNextTrack()
+				if (this.elapsedPlaySeconds > this.musicFileList[this.currentsongIndex].duration + 2){
+					this.skipForward()
+				}
 			}
 		}
 
 		//start the track advance watch	
 		setInterval(watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
-
-		//clear the current track and load the next one
-		const loadNextTrack = () => {
-			//reset the elapsed time
-			this.elapsedPlaySeconds = 0
-
-			//increment the song index and roll it over when we get to the end of the list
-			this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
-
-			//if the current sound exists stop it 
-			if (this.musicSoundInstance) this.musicSoundInstance.stop()
-
-			//unload the current music so we don't use all the memory
-			this.cleanUpMusic()
-
-			//recreate the asset container
-			this.musicAssets = new MRE.AssetContainer(this.context)
-
-			//create the next sound if music has been loaded
-			if (this.musicFileList[this.currentsongIndex]){
-
-				//get the next track and create an mre.sound from it
-				let file = this.musicFileList[this.currentsongIndex]
-				console.log("playing next track: ", file)
-				const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
-	
-				//save the next sound into the active instance
-				this.musicSoundInstance = this.musicSpeaker.startSound(
-					currentMusicAsset.id,
-					{
-						volume: this.volume,
-						looping: false,
-						doppler: 0.0,
-						spread: 0.4,
-						rolloffStartDistance: 2.5,
-						time: 0.0
-					}
-				)
-				//mark the state as playing
-				this.musicIsPlaying = true
-			}
-		}
-
-		//load the first sound into the object
-		loadNextTrack()
 		
 		//default to paused
         if (this.musicSoundInstance) this.musicSoundInstance.pause()
 		
-        //define pause/resume control
-		const cycleMusicState = () => {
-			//toggle the music state
-			this.musicIsPlaying = !this.musicIsPlaying
-			//depending on the state control the party
-			if (this.musicIsPlaying) {
-				this.musicSoundInstance.resume()
-			} else {
-				this.musicSoundInstance.pause()
-			}
-        }
-        
 		//use to adjust the state of the currently playing sound
 		const adjustSoundState = () => {
 			if (this.musicSoundInstance){
@@ -189,16 +140,6 @@ export default class SoundTest{
 		//each of these controls will have up/dn adjustment buttons
 		//these controls will be replaced later with a better interface
 		this.controls = [
-			{
-				label: "Playing", realtime: true, action: incr => {
-					if (incr > 0) {
-						loadNextTrack()
-					}else if (incr < 0) {
-						cycleMusicState()
-					}
-					return this.musicIsPlaying.toString()
-				}
-			},
 			{
 				label: "Volume", action: incr => {
 					if (incr > 0) {
@@ -239,6 +180,7 @@ export default class SoundTest{
 			actor: {
 				name: 'controlsParent',
 				parentId: rootActor.id,
+				appearance:{ enabled: new MRE.GroupMask( this.context, ['moderator'])},
 				transform: { local: { position: { x: 0.6, y: -1, z: -1 } } }
 			}
 		}))
@@ -252,18 +194,108 @@ export default class SoundTest{
 		return true
 	}
 
+	/**
+	 * play pause control
+	 */
+	private cycleMusicState(){
+		//toggle the music state
+		this.musicIsPlaying = !this.musicIsPlaying
+		//set the label with the state
+		this.playStateLabel.text.contents = this.getPlayStateAsString()
+		//set the appearance of the button
+		this.playPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
+		const zRotation = this.musicIsPlaying ? Math.PI * 0.25 : Math.PI * 0.5
+		this.playPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(0, 0, zRotation)
+		//depending on the state control the party
+		if (this.musicIsPlaying) {
+			this.musicSoundInstance.resume()
+		} else {
+			this.musicSoundInstance.pause()
+		}
+	}
 
+	/**
+	 * a get function for the play state
+	 */
+	private getPlayStateAsString(){
+		return "Playing:\n"+`${this.musicIsPlaying.toString()}`
+	}
+
+	/**
+	 * advance to the next track
+	 */
+	private skipForward(){
+		//increment the song index and roll it over when we get to the end of the list
+		this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
+		this.loadNextTrack()
+	}
+
+	/**
+	 * skip back a track
+	 */
+	private skipBackward(){
+		//increment the song index and roll it over when we get to the end of the list
+		this.currentsongIndex = this.currentsongIndex < 1 ? this.musicFileList.length-2 : this.currentsongIndex - 1
+		this.loadNextTrack()
+	}
+
+	/**
+	 * clear the current track and load the next one
+	 */
+	private loadNextTrack(){
+		//reset the elapsed time
+		this.elapsedPlaySeconds = 0
+
+		//if the current sound exists stop it 
+		if (this.musicSoundInstance) this.musicSoundInstance.stop()
+
+		//unload the current music so we don't use all the memory
+		this.cleanUpMusic()
+
+		//recreate the asset container
+		this.musicAssets = new MRE.AssetContainer(this.context)
+
+		//create the next sound if music has been loaded
+		if (this.musicFileList[this.currentsongIndex]){
+
+			//get the next track and create an mre.sound from it
+			let file = this.musicFileList[this.currentsongIndex]
+			console.log("playing next track: ", file)
+			const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+
+			//save the next sound into the active instance
+			this.musicSoundInstance = this.musicSpeaker.startSound(
+				currentMusicAsset.id,
+				{
+					volume: this.volume,
+					looping: false,
+					doppler: 0.0,
+					spread: 0.4,
+					rolloffStartDistance: 2.5,
+					time: 0.0
+				}
+			)
+
+			//Leave the music in the same state
+			//if it wasn't marked as playing then stop the newly loaded song
+			if (!this.musicIsPlaying) {
+				this.musicSoundInstance.pause()
+			}
+		}
+	}
+
+	
 	/**
      * loops through an array of controls adding up/dn buttons for each
      * @param controls 
      * @param parent 
      */
 	private createControls(controls: ControlDefinition[], parent: MRE.Actor) {
-		const arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
-		const squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
+		this.arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
+		this.squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
 		const layout = new MRE.PlanarGridLayout(parent)
 
-		let i = 1
+		let i = 2
 		let label: MRE.Actor, button: MRE.Actor
 
 		//create a button for setting a new dropbox folder
@@ -276,7 +308,7 @@ export default class SoundTest{
 				actor: {
 					name: 'setNewDropBoxButton',
 					parentId: parent.id,
-					appearance: { meshId: squareMesh.id },
+					appearance: { meshId: this.squareMesh.id },
 					collider: { geometry: { shape: MRE.ColliderType.Auto } },
 					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
 				}
@@ -293,10 +325,10 @@ export default class SoundTest{
 			})
 		})
 
-		//create a label for the set button
+		//create a label for the set folder button
 		layout.addCell({
 			row: 0,
-			column: 2,
+			column: 1,
 			width: 0.3,
 			height: 0.25,
 			contents: label = MRE.Actor.Create(this.context, {
@@ -304,7 +336,7 @@ export default class SoundTest{
 					name: 'setNewDropBoxLabel',
 					parentId: parent.id,
 					text: {
-						contents: 'Set dropbox folder',
+						contents: '      Set dropbox folder',
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Right,
@@ -314,13 +346,102 @@ export default class SoundTest{
 			})
 		})
 
-		//loop through the controls defined earlier. create buttons and set actions for each of them
+		//play/pause and skip controls
+		//create a button for setting a new dropbox folder
+		layout.addCell({
+			row: 1,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: this.playPauseButton = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'playPauseButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		this.playPauseButton.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.cycleMusicState()
+		})
+
+		//create a label for the play/pause button
+		layout.addCell({
+			row: 1,
+			column: 1,
+			width: 0.3,
+			height: 0.25,
+			contents: this.playStateLabel = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'playPauseLabel',
+					parentId: parent.id,
+					text: {
+						contents: this.getPlayStateAsString(),
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Center,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
+
+		//create the skip forward button
+		layout.addCell({
+			row: 1,
+			column: 3,
+			width: 0.05,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'skipForwardButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.skipForward()
+		})
+
+		//create the skip back button
+		layout.addCell({
+			row: 1,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'skipBackwardButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, -Math.PI*.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			this.skipBackward()
+		})
+
+		//loop through the controls defined earlier. 
+		//create buttons and set actions for each of them
 		for (const controlDef of controls) {
 			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
 			layout.addCell({
 				row: i,
 				column: 1,
-				width: 0.3,
+				width: 0.6,
 				height: 0.25,
 				contents: label = MRE.Actor.Create(this.context, {
 					actor: {
@@ -347,9 +468,9 @@ export default class SoundTest{
 					actor: {
 						name: `${controlDef.label}-less`,
 						parentId: parent.id,
-						appearance: { meshId: arrowMesh.id },
+						appearance: { meshId: this.arrowMesh.id },
 						collider: { geometry: { shape: MRE.ColliderType.Auto } },
-						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
 					}
 				})
 			})
@@ -363,9 +484,9 @@ export default class SoundTest{
 					actor: {
 						name: `${controlDef.label}-more`,
 						parentId: parent.id,
-						appearance: { meshId: arrowMesh.id },
+						appearance: { meshId: this.arrowMesh.id },
 						collider: { geometry: { shape: MRE.ColliderType.Auto } },
-						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 0.5) } }
+						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
 					}
 				})
 			})
