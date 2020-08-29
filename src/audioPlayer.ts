@@ -40,7 +40,7 @@ export default class AudioFilePlayer{
 	private playPauseButton : MRE.Actor
 	private arrowMesh : MRE.Mesh
 	private squareMesh : MRE.Mesh
-	private useStreaming = true
+	private useStreaming = false
 
 	controls: ControlDefinition[] = []
 	prompt : Prompt
