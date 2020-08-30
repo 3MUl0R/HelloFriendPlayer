@@ -25,7 +25,7 @@ export default class AudioFilePlayer{
 
 	protected modsOnly = true
 	private assets: MRE.AssetContainer
-	private musicAssets: MRE.AssetContainer
+	private musicAssetContainer: MRE.AssetContainer
 
 	private autoAdvanceIntervalSeconds = 1
 	private musicIsPlaying = false
@@ -33,12 +33,14 @@ export default class AudioFilePlayer{
 	private currentsongIndex = 0
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
+	private currentMusicAsset : MRE.Sound
 	private volume = 0.04
 	private spread = 0.4
 	private rolloffStartDistance = 2.5
 	private playStateLabel : MRE.Actor
 	private playPauseButton : MRE.Actor
 	private wristPlayPauseButton : MRE.Actor
+	private wristPlayPauseButtonHasBeenMoved = false
 	private trackNameLabel : MRE.Actor
 	private volumeLabel : MRE.Actor
 	private arrowMesh : MRE.Mesh
@@ -78,7 +80,7 @@ export default class AudioFilePlayer{
 	 */
 	public cleanup() {
 		this.assets.unload()
-		this.musicAssets.unload()
+		this.musicAssetContainer.unload()
 	}
 
     /**
@@ -89,7 +91,7 @@ export default class AudioFilePlayer{
 
 		this.prompt = new Prompt(this.context)
 		this.assets = new MRE.AssetContainer(this.context)
-		this.musicAssets = new MRE.AssetContainer(this.context)
+		this.musicAssetContainer = new MRE.AssetContainer(this.context)
 
 		this.musicSpeaker = MRE.Actor.Create(this.context, {
 			actor: {
@@ -140,7 +142,7 @@ export default class AudioFilePlayer{
 					} else if (incr < 0) {
 						this.spread = this.spread <= 0.1 ? 0.0 : this.spread - .1
 					}
-					this.adjustSoundState()
+					this.adjustSoundParameters()
 					return Math.floor(this.spread * 100) + "%"
 				}
 			},
@@ -155,7 +157,7 @@ export default class AudioFilePlayer{
 						//limit it to a minimum value
 						this.rolloffStartDistance = this.rolloffStartDistance < 0.2 ? 0.2 : this.rolloffStartDistance
                     }
-					this.adjustSoundState()
+					this.adjustSoundParameters()
 					return this.rolloffStartDistance.toPrecision(2).toString()
 				}
 			},
@@ -206,7 +208,7 @@ export default class AudioFilePlayer{
 		//once the volume label has been created set the label value when changes are made
 		if (this.volumeLabel) this.volumeLabel.text.contents = `Volume:\n${volumeValue}`
 		//commit the changes to the actual sound object
-		this.adjustSoundState()
+		this.adjustSoundParameters()
 		//return the value to be used when the label is first created
 		return volumeValue
 	}
@@ -246,14 +248,17 @@ export default class AudioFilePlayer{
 		)
 
 		//if the wrist controls have been created then we need to modify them aswell
+		//if the play pause has a custom postion then don't mess with its rotation
 		if (this.wristPlayPauseButton){
 			this.wristPlayPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
 			this.wristPlayPauseButton.appearance.materialId = this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id
-			this.wristPlayPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(
-				this.wristControlsRootPose.ori.x, 
-				this.wristControlsRootPose.ori.y, 
-				this.musicIsPlaying ? Math.PI * 0.25 : 0.5
-			)
+			if (!this.wristPlayPauseButtonHasBeenMoved){
+				this.wristPlayPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(
+					this.wristControlsRootPose.ori.x, 
+					this.wristControlsRootPose.ori.y, 
+					this.musicIsPlaying ? Math.PI * 0.25 : 0.5
+				)
+			}
 		}
 		
 		this.startStopTheParty()
@@ -306,19 +311,16 @@ export default class AudioFilePlayer{
 		//if the current sound exists stop it 
 		if (this.musicSoundInstance) this.musicSoundInstance.stop()
 
-		//unload the current music so we don't use all the memory
-		this.musicAssets.unload()
-
-		//recreate the asset container
-		this.musicAssets = new MRE.AssetContainer(this.context)
+		//recreate the asset container to dump the old track
+		this.musicAssetContainer = new MRE.AssetContainer(this.context)
 
 		//create the next sound if music has been loaded
 		if (this.musicFileList[this.currentsongIndex]){
 
 			if (this.useStreaming){
-				await this.createStreamInstance()
+				this.createStreamInstance()
 			}else{
-				await this.createAudioInstance()
+				this.createAudioInstance()
 			}
 
 			//Leave the music in the same state
@@ -336,7 +338,7 @@ export default class AudioFilePlayer{
 	/**
 	 * use to adjust the state of the currently playing sound
 	 */
-	private adjustSoundState(){
+	private adjustSoundParameters(){
 		if (this.musicSoundInstance){
 			this.musicSoundInstance.setState(
 				{
@@ -352,19 +354,19 @@ export default class AudioFilePlayer{
 	/**
 	 * use to create a streaming audio object
 	 */
-	private async createStreamInstance(){
+	private createStreamInstance(){
 		//get the next track and create a video stream from it
 		let file = this.musicFileList[this.currentsongIndex]
 		console.log("playing next track: ", file)
-		const currentMusicAsset = this.musicAssets.createVideoStream(file.name, { uri: file.url})
+		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
 
 		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
 			currentMusicAsset.id,
 			{
 				volume: this.volume,
 				looping: false,
-				spread: 1.0,
-				rolloffStartDistance: 2.5,
+				spread: this.spread,
+				rolloffStartDistance: this.rolloffStartDistance,
 				time: this.elapsedPlaySeconds,
 				visible: false
 			}
@@ -377,21 +379,20 @@ export default class AudioFilePlayer{
 	/**
 	 * use to create a file based audio object
 	 */
-	private async createAudioInstance(){
+	private createAudioInstance(){
 		//get the next track and create an mre.sound from it
 		let file = this.musicFileList[this.currentsongIndex]
 		console.log("playing next track: ", file)
-		const currentMusicAsset = this.musicAssets.createSound(file.name, { uri: file.url})
+		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
 
 		//save the next sound into the active instance
 		this.musicSoundInstance = this.musicSpeaker.startSound(
-			currentMusicAsset.id,
+			this.currentMusicAsset.id,
 			{
 				volume: this.volume,
 				looping: false,
-				doppler: 0.0,
-				spread: 0.4,
-				rolloffStartDistance: 2.5,
+				spread: this.spread,
+				rolloffStartDistance: this.rolloffStartDistance,
 				time: this.elapsedPlaySeconds
 			}
 		)
@@ -434,13 +435,14 @@ export default class AudioFilePlayer{
      * @param parent 
      */
 	private createControls(controls: ControlDefinition[], parent: MRE.Actor) {
+		//define all of the meshes and materials
 		this.arrowMesh = this.assets.createCylinderMesh('arrow', 0.01, 0.08, 'z', 3)
 		this.squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
 		this.stopButtonMaterial = this.assets.createMaterial('stopButtonMaterial', {color:{a:1,r:1,g:0,b:0}, emissiveColor:{r:1,g:0,b:0}})
 		this.playButtonMaterial = this.assets.createMaterial('playButtonMaterial', {color:{a:1,r:0,g:1,b:0}, emissiveColor:{r:0,g:1,b:0}})
 		this.generalButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0,g:115,b:255}, emissiveColor:{r:0,g:0,b:255}})
 		this.volumeButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0.5,g:50,b:50}, emissiveColor:{r:0.5,g:50,b:50}})
-		this.skipButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0,g:115,b:255}, emissiveColor:{r:0,g:115,b:255}})
+		this.skipButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:30,g:10,b:180}, emissiveColor:{r:30,g:10,b:180}})
 		const layout = new MRE.PlanarGridLayout(parent)
 
 		let currentLayoutRow = 0
@@ -723,7 +725,10 @@ export default class AudioFilePlayer{
 
 		this.wristPlayPauseButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: this.arrowMesh.id, materialId: this.playButtonMaterial.id },
+				appearance: { 
+					meshId: this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id, 
+					materialId: this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id 
+				},
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -732,16 +737,20 @@ export default class AudioFilePlayer{
 							y: this.wristControlsRootPose.pos.y + 0.05, 
 							z: this.wristControlsRootPose.pos.z + -0.115 
 						},
-						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, 0.5),
+						rotation: MRE.Quaternion.FromEulerAngles(this.wristControlsRootPose.ori.x, this.wristControlsRootPose.ori.y, this.musicIsPlaying ? Math.PI * 0.25 : 0.5),
 						scale: { x: this.wristControlsScale, y: this.wristControlsScale, z: 0.5 },
 					}
 				},
 				attachment: {
 					attachPoint: "left-hand",
 					userId: user.id
-				}
+				},
+				grabbable:true
 			}
 		})
+
+		//track if the play pause button has been moved to a custom postion
+		this.wristPlayPauseButton.onGrab("begin", state => {this.wristPlayPauseButtonHasBeenMoved = true})
 
 		const volumeUpButton = MRE.Actor.Create(this.context, {
 			actor: {
@@ -761,7 +770,8 @@ export default class AudioFilePlayer{
 				attachment: {
 					attachPoint: "left-hand",
 					userId: user.id
-				}
+				},
+				grabbable:true
 			}
 		})
 
@@ -806,7 +816,8 @@ export default class AudioFilePlayer{
 				attachment: {
 					attachPoint: "left-hand",
 					userId: user.id
-				}
+				},
+				grabbable:true
 			}
 		})
 
@@ -828,7 +839,8 @@ export default class AudioFilePlayer{
 				attachment: {
 					attachPoint: "left-hand",
 					userId: user.id
-				}
+				},
+				grabbable:true
 			}
 		})
 
