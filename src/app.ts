@@ -83,9 +83,7 @@ export default class myApp{
 	 * @param user The user that bailed
 	 */
 	private userLeft(user: MRE.User){
-		user.context.actors.forEach(actor => {
-			actor.destroy()
-		})
+		console.log("user left: ", user)
 	}
 	
 	/**
