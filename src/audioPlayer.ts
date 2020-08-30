@@ -52,7 +52,7 @@ export default class AudioFilePlayer{
 	private skipButtonMaterial : MRE.Material
 	private wristControlsRootPose = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
 	private wristControlsScale = 0.2
-	private wristButtonActorsArray : MRE.Actor[]
+	private wristButtonActorsArray : MRE.Actor[] = []
 
 	//if streaming is used on files then the audio is not syncd between users
 	private useStreaming = false
