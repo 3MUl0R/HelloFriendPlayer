@@ -1,7 +1,7 @@
 // const { Pool, Client } = require('pg')
 
 import { Pool } from 'pg'
-import AudioFileInfo from './types'
+import AudioFileInfo, { SessionData, SessionState } from './types'
 
 export default class DBConnect{
 
@@ -43,12 +43,15 @@ export default class DBConnect{
      * pull the current playlist for a given sessionid from the db
      * @param sessionId 
      */
-    async getSessionList(sessionId:string):Promise<AudioFileInfo[]> {
+    async getSessionData(sessionId:string):Promise<SessionData> {
         const text = 'SELECT * FROM sessiondata WHERE sessionId=$1'
         const values = [sessionId]
         const res = await this.pool.query(text, values)
         //if nothing was found in the db return undefined
-        return res.rows[0] ? JSON.parse(res.rows[0].playlistjson) as AudioFileInfo[] : undefined
+        let sessionData = new SessionData()
+        sessionData.playlist = res.rows[0] ? JSON.parse(res.rows[0].playlistjson) as AudioFileInfo[] : undefined
+        sessionData.state = res.rows[0] ? JSON.parse(res.rows[0].state) as SessionState : undefined
+        return sessionData
         
     }
 
@@ -76,10 +79,34 @@ export default class DBConnect{
             const res = await this.pool.query(text, values)
 
         }
-
-
     }
 
+    /**
+     * save session settings to the db
+     * to receive session settings just load a playlist
+     * @param state 
+     */
+    async saveSessionState(sessionId:string, state:SessionState){
+
+        //first we check to see if an entry exists
+        let text = 'select * from sessiondata WHERE sessionid = $1'
+        let values = [sessionId]
+        const res = await this.pool.query(text, values)
+
+        //set the values for the insert or update
+        values = [sessionId, JSON.stringify(state) ]
+        //if the select didn't find anything then we do an insert
+        if (!res.rows[0]) {
+            let text = 'INSERT INTO sessiondata (sessionid, state) VALUES ($1, $2)'
+            const res = await this.pool.query(text, values)
+
+        //else update the existing row
+        }else{
+            let text = 'UPDATE sessiondata SET state = $2 WHERE sessionid = $1'
+            const res = await this.pool.query(text, values)
+
+        }
+    }
     
     
 }

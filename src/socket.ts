@@ -2,7 +2,7 @@ import * as musicMetadata from 'music-metadata'
 import fetch from 'node-fetch'
 import got from 'got'
 
-import AudioFileInfo from './types'
+import AudioFileInfo, { SessionState } from './types'
 import DBConnect from './db'
 import socketIO from "socket.io"
 
@@ -45,16 +45,21 @@ export default class SocketServer{
             //when a session playlist is requested find it and deliver it to the client
             socket.on('getSessionPlaylist', (sessionId:string) => {
     
-                this.db.getSessionList(sessionId).then(playlistData => {
+                this.db.getSessionData(sessionId).then(sessionData => {
                     //if no list is found we wil need to return an empty one
-                    const blank : AudioFileInfo[] = []
-                    const playlist = playlistData ? playlistData : blank
-                    //log the playlist
-                    console.log(`sending playlist for session: ${sessionId}: `, playlist)
+                    const emptyPlaylist : AudioFileInfo[] = []
+                    sessionData.playlist = sessionData.playlist ? sessionData.playlist : emptyPlaylist
+                    sessionData.state = sessionData.state ? sessionData.state : new SessionState
+                    
                     //deliver it to the client
-                    socket.emit('deliverSessionPlaylist', playlist)
+                    socket.emit('deliverSessionState', sessionData)
                 })
     
+            })
+
+            //save the session state upon request
+            socket.on('saveSessionState', (sessionId:string, state:SessionState) => {
+                this.db.saveSessionState(sessionId, state)
             })
     
         })

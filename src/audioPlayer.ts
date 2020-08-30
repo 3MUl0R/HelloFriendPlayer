@@ -5,7 +5,7 @@
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import Prompt from './prompt'
-import AudioFileInfo, { ButtonStorage } from './types'
+import AudioFileInfo, { ButtonStorage, SessionData, SessionState } from './types'
 
 
 /** Defines an animation control field */
@@ -26,8 +26,9 @@ export default class AudioFilePlayer{
 	protected modsOnly = true
 	private assets: MRE.AssetContainer
 	private musicAssetContainer: MRE.AssetContainer
-
+	private settingsHaveChangedSinceSave = false
 	private autoAdvanceIntervalSeconds = 1
+	private settingsSaveInterval = 10
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
 	private currentsongIndex = 0
@@ -101,9 +102,20 @@ export default class AudioFilePlayer{
 
 		//get a playlist for this session if one exists
 		this.socket.emit("getSessionPlaylist", this.context.sessionId)
-		//when the playlist is returned capture it
-		this.socket.on("deliverSessionPlaylist", (playlist:AudioFileInfo[]) => {
-			this.musicFileList = playlist
+		//when the session data is returned put it to use
+		this.socket.on("deliverSessionState", (sessionData:SessionData) => {
+			this.musicFileList = sessionData.playlist
+			this.volume = sessionData.state.volume
+			this.spread = sessionData.state.spread
+			this.rolloffStartDistance = sessionData.state.rolloffStartDistance
+			this.currentsongIndex = sessionData.state.currentsongIndex
+			this.musicIsPlaying = sessionData.state.musicIsPlaying
+			console.log(`received session data for session: ${this.context.sessionId}: `, sessionData)
+
+			//now that the settings have been loaed from the db 
+			//start the setting save monitor
+			setInterval(this.saveSessionState, this.settingsSaveInterval * 1000)
+
 			//load the first sound into the object
 			this.loadNextTrack()
 		})
@@ -190,6 +202,25 @@ export default class AudioFilePlayer{
 		return true
 	}
 
+	/**
+	 * saves the session state if changes have been made
+	 */
+	private saveSessionState(){
+		if (this.settingsHaveChangedSinceSave){
+			//packup the settings
+			let state = new SessionState
+			state.currentsongIndex = this.currentsongIndex
+			state.musicIsPlaying = this.musicIsPlaying
+			state.rolloffStartDistance = this.rolloffStartDistance
+			state.spread = this.spread
+			state.volume = this.volume
+			//save to the db
+			this.socket.emit('saveSessionState', this.context.sessionId, state)
+			//reset the trigger
+			this.settingsHaveChangedSinceSave = false
+		}
+	}
+
 
 	/**
 	 * use to adjust and set the volume
@@ -270,6 +301,8 @@ export default class AudioFilePlayer{
 	 * toggles the play/pause state of the music
 	 */
 	private startStopTheParty(){
+		//mark the sesion settings as changed
+		this.settingsHaveChangedSinceSave = true
 		//depending on the state control the party
 		if (this.musicIsPlaying) {
 			this.musicSoundInstance.resume()
@@ -330,10 +363,14 @@ export default class AudioFilePlayer{
 			if (!this.musicIsPlaying) {
 				this.musicSoundInstance.pause()
 			}
+
+			//mark the sesion settings as changed
+			this.settingsHaveChangedSinceSave = true
+	
+			//set the track name label
+			this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex].name
 		}
 
-		//set the track name label
-		this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex].name
 	}
 
 
@@ -351,6 +388,9 @@ export default class AudioFilePlayer{
 				}
 			)
 		}
+
+		//mark the sesion settings as changed
+		this.settingsHaveChangedSinceSave = true
 	}
 
 	/**
@@ -384,6 +424,7 @@ export default class AudioFilePlayer{
 	private createAudioInstance(){
 		//get the next track and create an mre.sound from it
 		let file = this.musicFileList[this.currentsongIndex]
+		
 		console.log("playing next track: ", file)
 		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
 

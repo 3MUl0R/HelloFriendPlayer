@@ -11,6 +11,21 @@ export default class AudioFileInfo {
     fileName = ""
 }
 
+export class SessionData{
+    playlist : AudioFileInfo[]
+    state : SessionState
+}
+
+/**
+ * stores the setting for a session id
+ */
+export class SessionState{
+    volume = 0.04
+    spread = 0.4
+    rolloffStartDistance = 2.5
+    musicIsPlaying = false
+    currentsongIndex = 0
+}
 
 /**
  * holds the defaults for app configuration
