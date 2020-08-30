@@ -771,6 +771,7 @@ export default class AudioFilePlayer{
 		const wristPlayPauseButton = MRE.Actor.Create(this.context, {
 			actor: {
 				appearance: { 
+					enabled: new MRE.GroupMask( this.context, ['moderator']),
 					meshId: this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id, 
 					materialId: this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id 
 				},
@@ -796,7 +797,10 @@ export default class AudioFilePlayer{
 
 		const volumeUpButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id },
+				appearance: { 
+					enabled: new MRE.GroupMask( this.context, ['moderator']),
+					meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id 
+				},
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -819,7 +823,10 @@ export default class AudioFilePlayer{
 
 		const volumeDnButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id },
+				appearance: { 
+					enabled: new MRE.GroupMask( this.context, ['moderator']),
+					meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id 
+				},
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -842,7 +849,10 @@ export default class AudioFilePlayer{
 
 		const skipBackwardButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
+				appearance: { 
+					enabled: new MRE.GroupMask( this.context, ['moderator']),
+					meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id 
+				},
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -865,7 +875,10 @@ export default class AudioFilePlayer{
 
 		const skipForwardButton = MRE.Actor.Create(this.context, {
 			actor: {
-				appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
+				appearance: { 
+					enabled: new MRE.GroupMask( this.context, ['moderator']),
+					meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id 
+				},
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
 				transform: {
 					local: {
@@ -941,7 +954,7 @@ export default class AudioFilePlayer{
 				actor.destroy()
 			}
 		})
-		this.wristButtonActorsArray = this.wristButtonActorsArray.filter((actor) => {actor.attachment.userId != user.id})
+		this.wristButtonActorsArray = this.wristButtonActorsArray.filter((actor) => {return actor.attachment.userId != user.id})
 	}
 
 }
