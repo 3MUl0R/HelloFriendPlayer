@@ -208,7 +208,7 @@ export default class AudioFilePlayer{
 				name: 'displayParent',
 				parentId: rootActor.id,
 				appearance:{ enabled: true},
-				transform: { local: { position: { x: 0, y: -0.2, z: 0 } } }
+				transform: { local: { position: { x: 0, y: 0, z: 0 } } }
 			}
 		}))
 
@@ -370,10 +370,17 @@ export default class AudioFilePlayer{
 
 		}
 
-		//set the track name label
-		this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex] ? this.musicFileList[this.currentsongIndex].name : 'Load Next Track'
+		//update the track info display
+		this.updateTrackInfoLabel()
 	}
 
+	/**
+	 * updates the info display label
+	 */
+	private updateTrackInfoLabel = () => {
+		console.log('updateing label')
+		this.trackNameLabel.text.contents = this.createTrackStatusInfo()
+	}
 
 	/**
 	 * use to adjust the state of the currently playing sound
@@ -443,6 +450,20 @@ export default class AudioFilePlayer{
 	}
 
 	/**
+	 * formats the current name and playtime info for the current track
+	 */
+	private createTrackStatusInfo():string{
+		let info = ''
+		if (this.musicFileList[this.currentsongIndex]){
+			info = this.musicFileList[this.currentsongIndex].name
+			info += `\n ${(this.elapsedPlaySeconds / 60).toFixed(2)} / ${(this.musicFileList[this.currentsongIndex].duration / 60).toFixed(2)}`
+		}else{
+			info = 'load track'
+		}
+		return info
+	}
+
+	/**
 	 * creates a display panel visible to all users
 	 * @param parent 
 	 */
@@ -461,7 +482,7 @@ export default class AudioFilePlayer{
 					name: 'trackNameLabel',
 					parentId: parent.id,
 					text: {
-						contents: this.musicFileList[this.currentsongIndex] ? this.musicFileList[this.currentsongIndex].name : 'load track',
+						contents: this.createTrackStatusInfo(),
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Center,
@@ -470,6 +491,9 @@ export default class AudioFilePlayer{
 				}
 			})
 		})
+
+		//now that the display has been created we can update it regularly 
+		setInterval(this.updateTrackInfoLabel, 1000)
 	}
 
 	
@@ -581,7 +605,7 @@ export default class AudioFilePlayer{
 		})
 
 		//next row
-		currentLayoutRow += 1
+		currentLayoutRow ++
 
 		//loop through the controls defined earlier
 		//create buttons and set actions for each of them
@@ -711,7 +735,7 @@ export default class AudioFilePlayer{
 		})
 
 		//next row
-		currentLayoutRow += 1
+		currentLayoutRow ++
 
 		//create a button to spawn controls on the users wrist
 		layout.addCell({
