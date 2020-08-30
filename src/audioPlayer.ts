@@ -28,7 +28,7 @@ export default class AudioFilePlayer{
 	private musicAssetContainer: MRE.AssetContainer
 	private settingsHaveChangedSinceSave = false
 	private autoAdvanceIntervalSeconds = 1
-	private settingsSaveInterval = 10
+	private settingsSaveIntervalSeconds = 10
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
 	private currentsongIndex = 0
@@ -112,10 +112,6 @@ export default class AudioFilePlayer{
 			this.musicIsPlaying = sessionData.state.musicIsPlaying
 			console.log(`received session data for session: ${this.context.sessionId}: `, sessionData)
 
-			//now that the settings have been loaed from the db 
-			//start the setting save monitor
-			setInterval(this.saveSessionState, this.settingsSaveInterval * 1000)
-
 			//load the first sound into the object
 			this.loadNextTrack()
 		})
@@ -138,6 +134,28 @@ export default class AudioFilePlayer{
 
 		//start the track advance watch	
 		setInterval(watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
+
+		const saveSessionState = () => {
+			if (this.settingsHaveChangedSinceSave){
+				//packup the settings
+				let state = new SessionState
+				state.currentsongIndex = this.currentsongIndex
+				state.musicIsPlaying = this.musicIsPlaying
+				state.rolloffStartDistance = this.rolloffStartDistance
+				state.spread = this.spread
+				state.volume = this.volume
+	
+				//save to the db
+				this.socket.emit('saveSessionState', this.context.sessionId, state)
+				//reset the trigger
+				this.settingsHaveChangedSinceSave = false
+			}
+		}
+
+		//now that the settings have been loaed from the db 
+		//start the setting save monitor
+		setInterval(saveSessionState, this.settingsSaveIntervalSeconds * 1000)
+
 
 		//define controls for the stream
 		//each of these controls will have up/dn adjustment buttons
@@ -202,26 +220,7 @@ export default class AudioFilePlayer{
 		return true
 	}
 
-	/**
-	 * saves the session state if changes have been made
-	 */
-	private saveSessionState(){
-		if (this.settingsHaveChangedSinceSave){
-			//packup the settings
-			let state = new SessionState
-			state.currentsongIndex = this.currentsongIndex
-			state.musicIsPlaying = this.musicIsPlaying
-			state.rolloffStartDistance = this.rolloffStartDistance
-			state.spread = this.spread
-			state.volume = this.volume
-			//save to the db
-			this.socket.emit('saveSessionState', this.context.sessionId, state)
-			//reset the trigger
-			this.settingsHaveChangedSinceSave = false
-		}
-	}
-
-
+	
 	/**
 	 * use to adjust and set the volume
 	 * @param incr 
@@ -325,6 +324,8 @@ export default class AudioFilePlayer{
 		//increment the song index and roll it over when we get to the end of the list
 		this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
 		this.loadNextTrack()
+		//mark the sesion settings as changed
+		this.settingsHaveChangedSinceSave = true
 	}
 
 	/**
@@ -334,6 +335,8 @@ export default class AudioFilePlayer{
 		//increment the song index and roll it over when we get to the end of the list
 		this.currentsongIndex = this.currentsongIndex < 1 ? this.musicFileList.length-2 : this.currentsongIndex - 1
 		this.loadNextTrack()
+		//mark the sesion settings as changed
+		this.settingsHaveChangedSinceSave = true
 	}
 
 	/**
@@ -364,13 +367,10 @@ export default class AudioFilePlayer{
 				this.musicSoundInstance.pause()
 			}
 
-			//mark the sesion settings as changed
-			this.settingsHaveChangedSinceSave = true
-	
-			//set the track name label
-			this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex].name
 		}
 
+		//set the track name label
+		this.trackNameLabel.text.contents = this.musicFileList[this.currentsongIndex] ? this.musicFileList[this.currentsongIndex].name : 'Load Next Track'
 	}
 
 
@@ -390,6 +390,7 @@ export default class AudioFilePlayer{
 		}
 
 		//mark the sesion settings as changed
+		console.log("marking the settings as changed")
 		this.settingsHaveChangedSinceSave = true
 	}
 
