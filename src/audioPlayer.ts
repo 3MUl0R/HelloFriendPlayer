@@ -111,7 +111,7 @@ export default class AudioFilePlayer{
 			this.rolloffStartDistance = sessionData.state.rolloffStartDistance
 			this.currentsongIndex = sessionData.state.currentsongIndex
 			this.musicIsPlaying = sessionData.state.musicIsPlaying
-			console.log(`received session data for session: ${this.context.sessionId}: `, sessionData)
+			MRE.log.info('app', `received session data for session: ${this.context.sessionId}: `, sessionData)
 
 			//load the first sound into the object
 			this.loadNextTrack()
@@ -214,7 +214,7 @@ export default class AudioFilePlayer{
 
 		//when the track list is delivered from the server set it as th active list
 		this.socket.on("deliverReadDropBoxfolder", (dropboxFileList:AudioFileInfo[]) => {
-			console.log("the returned file list: ", dropboxFileList)
+			MRE.log.info('app', "the returned file list: ", dropboxFileList)
 			this.musicFileList = dropboxFileList
 		})
 
@@ -391,7 +391,6 @@ export default class AudioFilePlayer{
 		}
 
 		//mark the sesion settings as changed
-		console.log("marking the settings as changed")
 		this.settingsHaveChangedSinceSave = true
 	}
 
@@ -401,7 +400,7 @@ export default class AudioFilePlayer{
 	private createStreamInstance(){
 		//get the next track and create a video stream from it
 		let file = this.musicFileList[this.currentsongIndex]
-		console.log("playing next track: ", file)
+		MRE.log.info('app', "playing next track: ", file)
 		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
 
 		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
@@ -427,7 +426,7 @@ export default class AudioFilePlayer{
 		//get the next track and create an mre.sound from it
 		let file = this.musicFileList[this.currentsongIndex]
 		
-		console.log("playing next track: ", file)
+		MRE.log.info('app', "playing next track: ", file)
 		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
 
 		//save the next sound into the active instance

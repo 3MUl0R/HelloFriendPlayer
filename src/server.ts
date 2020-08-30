@@ -25,7 +25,7 @@ if (!fs.existsSync('.env')) {
 		}
 	}
 	fs.writeFileSync('.env', defaultString)
-	console.log("created the default .env")
+	MRE.log.info('app', "created the default .env")
 }
 
 
@@ -49,7 +49,7 @@ const socketServer = new SocketServer()
 // the server starts accepting connections.
 async function runApp() {
 	//log that the app is starting
-	console.log("starting server")
+	MRE.log.info('app', "starting server")
 
 	// Start listening for connections and serve static files
 	const server = new MRE.WebHost({
@@ -59,7 +59,7 @@ async function runApp() {
 		permissions: [Permissions.UserInteraction, Permissions.UserTracking]
 	})
 
-	console.log("server started: ", server)
+	MRE.log.info('app', "server started: ", server)
 
 	// Handle new application sessions
 	server.adapter.onConnection((context, params) => {

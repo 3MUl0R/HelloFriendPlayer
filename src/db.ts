@@ -1,7 +1,10 @@
-// const { Pool, Client } = require('pg')
-
+import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import { Pool } from 'pg'
+
 import AudioFileInfo, { SessionData, SessionState } from './types'
+
+
+
 
 export default class DBConnect{
 
@@ -30,11 +33,11 @@ export default class DBConnect{
             .query('SELECT * FROM sessiondata WHERE id = $1', [1])
             .then(res => {
                 client.release()
-                console.log("db connection test returned: ", res.rows[0])
+                MRE.log.info('app', "db connection test returned: ", res.rows[0])
             })
             .catch(err => {
                 client.release()
-                console.log("db error:", err.stack)
+                MRE.log.info('app', "db error:", err.stack)
             })
         })
     }

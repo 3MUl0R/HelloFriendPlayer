@@ -1,3 +1,4 @@
+import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import * as musicMetadata from 'music-metadata'
 import fetch from 'node-fetch'
 import got from 'got'
@@ -33,12 +34,12 @@ export default class SocketServer{
         this.io.on('connection', (socket: SocketIO.Socket) => { 
 
             //log when a client connects
-            console.log("client connected", socket.client.id)
+            MRE.log.info('app', "client connected", socket.client.id)
     
             //when a client requests a new dropbox folder url be assigned as thier playlist
             //logg the request and begin processing the request
             socket.on("readDropBoxFolder", (dropBoxfolderUrl, sessionId:string) => {
-                console.log(`getting dropBoxfolder for ${sessionId}: `, dropBoxfolderUrl)
+                MRE.log.info('app', `getting dropBoxfolder for ${sessionId}: `, dropBoxfolderUrl)
                 this.processDropBoxfolderAndReply(dropBoxfolderUrl, socket, sessionId)
             })
     
@@ -71,7 +72,7 @@ export default class SocketServer{
      * @param url 
      */
     private async parseStream (url:string): Promise<musicMetadata.IAudioMetadata> {
-        console.log("getting meta for: ", url)
+        MRE.log.info('app', "getting meta for: ", url)
         // Read HTTP headers
         const response:any = await fetch(url); 
         // Extract the content-type
@@ -113,7 +114,7 @@ export default class SocketServer{
         //get rid of any duplicates
         const links = [... new Set(matches)]
         //log all of the links
-        console.log(`${sessionId} links found: `, links)
+        MRE.log.info('app', `${sessionId} links found: `, links)
         //create the array for the file info we will find
         const musicFileInfoArray : AudioFileInfo[] = []
         //pull the metadata for each file and save it to the array
@@ -129,7 +130,7 @@ export default class SocketServer{
             })
         }
         //save the results for next time the user:session starts
-        console.log(`saving playlist for: `, sessionId)
+        MRE.log.info('app', `saving playlist for: `, sessionId)
         this.db.saveNewSessionList(sessionId, musicFileInfoArray)
         //send the final results back to the user
         socket.emit('deliverReadDropBoxfolder', musicFileInfoArray)
