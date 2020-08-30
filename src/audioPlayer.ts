@@ -921,7 +921,6 @@ export default class AudioFilePlayer{
 		//add the play pause button to the list 
 		this.wristPlayPauseButtonStorageList.push(buttonStorage)
 
-
 	}
 
 }
