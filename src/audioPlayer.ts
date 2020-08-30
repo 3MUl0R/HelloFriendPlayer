@@ -400,7 +400,7 @@ export default class AudioFilePlayer{
 	private createStreamInstance(){
 		//get the next track and create a video stream from it
 		let file = this.musicFileList[this.currentsongIndex]
-		MRE.log.info('app', "playing next track: ", file)
+		MRE.log.info('app', `${this.context.sessionId} playing next track: `, file)
 		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
 
 		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
@@ -426,7 +426,7 @@ export default class AudioFilePlayer{
 		//get the next track and create an mre.sound from it
 		let file = this.musicFileList[this.currentsongIndex]
 		
-		MRE.log.info('app', "playing next track: ", file)
+		MRE.log.info('app', `${this.context.sessionId} playing next track: `, file)
 		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
 
 		//save the next sound into the active instance
