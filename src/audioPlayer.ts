@@ -440,9 +440,9 @@ export default class AudioFilePlayer{
 		this.squareMesh = this.assets.createCylinderMesh('square', 0.01, 0.08, 'z', 4)
 		this.stopButtonMaterial = this.assets.createMaterial('stopButtonMaterial', {color:{a:1,r:1,g:0,b:0}, emissiveColor:{r:1,g:0,b:0}})
 		this.playButtonMaterial = this.assets.createMaterial('playButtonMaterial', {color:{a:1,r:0,g:1,b:0}, emissiveColor:{r:0,g:1,b:0}})
-		this.generalButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0,g:115,b:255}, emissiveColor:{r:0,g:0,b:255}})
-		this.volumeButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:0.5,g:50,b:50}, emissiveColor:{r:0.5,g:50,b:50}})
-		this.skipButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:0.88,r:30,g:10,b:180}, emissiveColor:{r:30,g:10,b:180}})
+		this.generalButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:1,r:0,g:115,b:255}, emissiveColor:{r:0,g:115,b:255}})
+		this.volumeButtonMaterial = this.assets.createMaterial('volumeButtonMaterial', {color:{a:1,r:225,g:229,b:0}, emissiveColor:{r:225,g:229,b:0}})
+		this.skipButtonMaterial = this.assets.createMaterial('skipButtonMaterial', {color:{a:1,r:255,g:0,b:133}, emissiveColor:{r:255,g:0,b:133}})
 		const layout = new MRE.PlanarGridLayout(parent)
 
 		let currentLayoutRow = 0
