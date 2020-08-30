@@ -83,7 +83,7 @@ export default class myApp{
 	 * @param user The user that bailed
 	 */
 	private userLeft(user: MRE.User){
-		console.log("user left: ", user)
+		this.audioPlayer.cleanUpUserAttachments(user)
 	}
 	
 	/**

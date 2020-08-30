@@ -52,6 +52,7 @@ export default class AudioFilePlayer{
 	private skipButtonMaterial : MRE.Material
 	private wristControlsRootPose = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
 	private wristControlsScale = 0.2
+	private wristButtonActorsArray : MRE.Actor[]
 
 	//if streaming is used on files then the audio is not syncd between users
 	private useStreaming = false
@@ -839,7 +840,7 @@ export default class AudioFilePlayer{
 			}
 		})
 
-		const skipBackButton = MRE.Actor.Create(this.context, {
+		const skipBackwardButton = MRE.Actor.Create(this.context, {
 			actor: {
 				appearance: { meshId: this.arrowMesh.id, materialId: this.skipButtonMaterial.id },
 				collider: { geometry: { shape: MRE.ColliderType.Auto } },
@@ -903,7 +904,7 @@ export default class AudioFilePlayer{
 			this.skipForward()
 		})
 
-		const skipBackButtonBehavior = skipBackButton.setBehavior(MRE.ButtonBehavior)
+		const skipBackButtonBehavior = skipBackwardButton.setBehavior(MRE.ButtonBehavior)
 		skipBackButtonBehavior.onButton("pressed", () => {
 			this.skipBackward()
 		})
@@ -921,6 +922,26 @@ export default class AudioFilePlayer{
 		//add the play pause button to the list 
 		this.wristPlayPauseButtonStorageList.push(buttonStorage)
 
+		//save all of the actors to be destroyed later
+		this.wristButtonActorsArray.push(volumeUpButton)
+		this.wristButtonActorsArray.push(volumeDnButton)
+		this.wristButtonActorsArray.push(skipForwardButton)
+		this.wristButtonActorsArray.push(skipBackwardButton)
+		this.wristButtonActorsArray.push(wristPlayPauseButton)
+
+	}
+
+	/**
+	 * destroys any attachments for a user
+	 * @param user 
+	 */
+	cleanUpUserAttachments(user:MRE.User){
+		this.wristButtonActorsArray.forEach(actor => {
+			if (actor.attachment.userId == user.id){
+				actor.destroy()
+			}
+		})
+		this.wristButtonActorsArray = this.wristButtonActorsArray.filter((actor) => {actor.attachment.userId != user.id})
 	}
 
 }
