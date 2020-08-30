@@ -1,3 +1,5 @@
+import * as MRE from '@microsoft/mixed-reality-extension-sdk'
+
 
 /**
  * defines all info needed for each audio file
@@ -28,5 +30,13 @@ export class DefaultEnv {
     PG_PORT = '5432'
 }
 
+
+/**
+ * stores a button and information about it
+ */
+export class ButtonStorage{
+    button : MRE.Actor
+	wristPlayPauseButtonHasBeenMoved = false
+}
 
 

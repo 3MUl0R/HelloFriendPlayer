@@ -5,7 +5,7 @@
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 import Prompt from './prompt'
-import AudioFileInfo from './types'
+import AudioFileInfo, { ButtonStorage } from './types'
 
 
 /** Defines an animation control field */
@@ -39,8 +39,7 @@ export default class AudioFilePlayer{
 	private rolloffStartDistance = 2.5
 	private playStateLabel : MRE.Actor
 	private playPauseButton : MRE.Actor
-	private wristPlayPauseButton : MRE.Actor
-	private wristPlayPauseButtonHasBeenMoved = false
+	private wristPlayPauseButtonStorageList : ButtonStorage[] = []
 	private trackNameLabel : MRE.Actor
 	private volumeLabel : MRE.Actor
 	private arrowMesh : MRE.Mesh
@@ -249,17 +248,20 @@ export default class AudioFilePlayer{
 
 		//if the wrist controls have been created then we need to modify them aswell
 		//if the play pause has a custom postion then don't mess with its rotation
-		if (this.wristPlayPauseButton){
-			this.wristPlayPauseButton.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
-			this.wristPlayPauseButton.appearance.materialId = this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id
-			if (!this.wristPlayPauseButtonHasBeenMoved){
-				this.wristPlayPauseButton.transform.local.rotation = MRE.Quaternion.FromEulerAngles(
-					this.wristControlsRootPose.ori.x, 
-					this.wristControlsRootPose.ori.y, 
-					this.musicIsPlaying ? Math.PI * 0.25 : 0.5
-				)
+		//do this for each of the wrist controls
+		this.wristPlayPauseButtonStorageList.forEach(buttonStored => {
+			if (buttonStored){
+				buttonStored.button.appearance.meshId = this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id
+				buttonStored.button.appearance.materialId = this.musicIsPlaying ? this.stopButtonMaterial.id : this.playButtonMaterial.id
+				if (!buttonStored.wristPlayPauseButtonHasBeenMoved){
+					buttonStored.button.transform.local.rotation = MRE.Quaternion.FromEulerAngles(
+						this.wristControlsRootPose.ori.x, 
+						this.wristControlsRootPose.ori.y, 
+						this.musicIsPlaying ? Math.PI * 0.25 : 0.5
+					)
+				}
 			}
-		}
+		})
 		
 		this.startStopTheParty()
 	}
@@ -723,7 +725,7 @@ export default class AudioFilePlayer{
 	 */
 	spawnUserControls(user: MRE.User) {
 
-		this.wristPlayPauseButton = MRE.Actor.Create(this.context, {
+		const wristPlayPauseButton = MRE.Actor.Create(this.context, {
 			actor: {
 				appearance: { 
 					meshId: this.musicIsPlaying ? this.squareMesh.id : this.arrowMesh.id, 
@@ -748,9 +750,6 @@ export default class AudioFilePlayer{
 				grabbable:true
 			}
 		})
-
-		//track if the play pause button has been moved to a custom postion
-		this.wristPlayPauseButton.onGrab("begin", state => {this.wristPlayPauseButtonHasBeenMoved = true})
 
 		const volumeUpButton = MRE.Actor.Create(this.context, {
 			actor: {
@@ -867,10 +866,18 @@ export default class AudioFilePlayer{
 			this.skipBackward()
 		})
 
-		const playPauseButtonBehavior = this.wristPlayPauseButton.setBehavior(MRE.ButtonBehavior)
+		const playPauseButtonBehavior = wristPlayPauseButton.setBehavior(MRE.ButtonBehavior)
 		playPauseButtonBehavior.onButton("pressed", () => {
 			this.cycleMusicState()
 		})
+
+		//store the button and its status so it can be managed in the future
+		const buttonStorage = new ButtonStorage
+		buttonStorage.button = wristPlayPauseButton
+		//track if the play pause button has been moved to a custom postion
+		wristPlayPauseButton.onGrab("begin", state => {buttonStorage.wristPlayPauseButtonHasBeenMoved = true})
+		//add the play pause button to the list 
+		this.wristPlayPauseButtonStorageList.push(buttonStorage)
 
 
 	}
