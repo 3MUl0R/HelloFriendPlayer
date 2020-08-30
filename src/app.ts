@@ -84,9 +84,6 @@ export default class myApp{
 	 */
 	private userLeft(user: MRE.User){
 		console.log("user left: ", user)
-		user.internal.context.actorSet.forEach(actor => 
-			actor.destroy()
-		)
 	}
 	
 	/**
