@@ -226,7 +226,6 @@ export default class AudioFilePlayer{
 	private watchForTrackAutoAdvance = () => {
 		//integrate the elapsed play time
 		if (this.musicIsPlaying) this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds
-		console.log(`elapsed play time: ${this.elapsedPlaySeconds}`)
 
 		//if music has been loaded we can check for duration to be elapsed
 		if (this.musicFileList[this.chosenTrackIndex]){
