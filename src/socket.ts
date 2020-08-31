@@ -134,7 +134,7 @@ export default class SocketServer{
         MRE.log.info('app', `saving playlist for: `, sessionId)
         this.db.saveNewSessionList(sessionId, musicFileInfoArray)
         //send the final results back to the user
-        socket.emit('deliverReadDropBoxfolder', musicFileInfoArray)
+        socket.emit('deliverReadDropBoxFolder', musicFileInfoArray)
     }
 
 }

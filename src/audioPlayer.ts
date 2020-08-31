@@ -39,6 +39,7 @@ export default class AudioFilePlayer{
 	private elapsedPlaySeconds = 0
 	private currentSongIndex = 0
 	private chosenTrackIndex = 0
+	private loadingNewDropboxFolder = false
 
 	private volume = 0.04
 	private spread = 0.4
@@ -212,10 +213,11 @@ export default class AudioFilePlayer{
 
 		//when a track list is delivered from the server set it as the active list
 		//and load the first track
-		this.socket.on("deliverReadDropBoxfolder", (dropboxFileList:AudioFileInfo[]) => {
+		this.socket.on("deliverReadDropBoxFolder", (dropboxFileList:AudioFileInfo[]) => {
 			MRE.log.info('app', "the returned file list: ", dropboxFileList)
 			this.musicFileList = dropboxFileList
 			this.loadNextTrack()
+			this.loadingNewDropboxFolder = false
 		})
 
 		return true
@@ -459,7 +461,7 @@ export default class AudioFilePlayer{
 	 */
 	private updateTrackInfoLabel = () => {
 		if (this.trackNameLabel){
-			this.trackNameLabel.text.contents = this.createTrackStatusInfo()
+					this.trackNameLabel.text.contents = this.loadingNewDropboxFolder ? "Loading new dropbox folder..." : this.createTrackStatusInfo()
 		}
 	}
 
@@ -977,7 +979,10 @@ export default class AudioFilePlayer{
 		//set the action for the button
 		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
 			user.prompt("Enter your dropbox folder url", true).then(res => {
-				if (res.submitted && res.text != '') this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
+				if (res.submitted && res.text != '') {
+					this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
+					this.loadingNewDropboxFolder = true
+				}
 			})
 			.catch(err => {
 				console.error(err)
