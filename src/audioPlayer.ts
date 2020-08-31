@@ -132,7 +132,7 @@ export default class AudioFilePlayer{
 			//any parameters that are added later should be tested for existence
 			this.shuffle = sessionData.state.shuffle ? sessionData.state.shuffle : false
 
-			MRE.log.info('app', `client received session data for session: ${this.context.sessionId}`)
+			MRE.log.info('client', `received session data for session: ${this.context.sessionId}`)
 
 			//shuffle the songs if its turned on
 			if (this.shuffle) this.createShuffleList()
@@ -214,7 +214,7 @@ export default class AudioFilePlayer{
 		//when a track list is delivered from the server set it as the active list
 		//and load the first track
 		this.socket.on("deliverReadDropBoxFolder", (dropboxFileList:AudioFileInfo[]) => {
-			MRE.log.info('app', "the returned file list: ", dropboxFileList)
+			MRE.log.info('client', "the returned file list: ", dropboxFileList)
 			this.musicFileList = dropboxFileList
 			this.loadNextTrack()
 			this.loadingNewDropboxFolder = false
@@ -511,7 +511,7 @@ export default class AudioFilePlayer{
 			}
 		)
 		
-		MRE.log.info('app', `${this.context.sessionId} playing next track: ${file.name}\n   ${file.url}`)
+		MRE.log.info('client', `${this.context.sessionId} playing next track: ${file.name}\n -- ${file.url}`)
 		//creating a stream always results in the music playing
 		this.setMusicStateToPlaying()
 	}
@@ -536,7 +536,7 @@ export default class AudioFilePlayer{
 			}
 		)
 
-		MRE.log.info('app', `${this.context.sessionId} playing next track: ${file.name} \n ${file.url}`)
+		MRE.log.info('client', `${this.context.sessionId} playing next track: ${file.name} \n -- ${file.url}`)
 
 	}
 
