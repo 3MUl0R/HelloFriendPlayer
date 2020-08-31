@@ -270,7 +270,7 @@ export default class AudioFilePlayer{
 		this.adjustSoundParameters()
 		
 		const spreadValue = Math.floor(this.spread * 100) + "%"
-		if (this.spreadLabel) this.spreadLabel.text.contents = spreadValue
+		if (this.spreadLabel) this.spreadLabel.text.contents = `Spread:\n${spreadValue}`
 		return spreadValue 
 	}
 
@@ -291,7 +291,7 @@ export default class AudioFilePlayer{
 		this.adjustSoundParameters()
 		
 		const rolloffValue = this.rolloffStartDistance.toPrecision(2).toString()
-		if (this.rolloffLabel) this.rolloffLabel.text.contents = rolloffValue
+		if (this.rolloffLabel) this.rolloffLabel.text.contents = `Rolloff:\n${rolloffValue}`
 		return rolloffValue
 	}
 
