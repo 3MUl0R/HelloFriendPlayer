@@ -26,15 +26,17 @@ export default class AudioFilePlayer{
 	protected modsOnly = true
 	private assets: MRE.AssetContainer
 	private musicAssetContainer: MRE.AssetContainer
-	private settingsHaveChangedSinceSave = false
-	private autoAdvanceIntervalSeconds = 1
-	private settingsSaveIntervalSeconds = 10
-	private musicIsPlaying = false
-	private elapsedPlaySeconds = 0
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
-	private shuffledTrackIndicies : number[] = []
 	private currentMusicAsset : MRE.Sound
+	private shuffledTrackIndicies : number[] = []
+
+	private autoAdvanceIntervalSeconds = 1
+	private settingsSaveIntervalSeconds = 10
+	private trackDurationBufffer = 2
+	private settingsHaveChangedSinceSave = false
+	private musicIsPlaying = false
+	private elapsedPlaySeconds = 0
 	private currentSongIndex = 0
 	private chosenTrackIndex = 0
 
@@ -228,7 +230,7 @@ export default class AudioFilePlayer{
 
 		//if music has been loaded we can check for duration to be elapsed
 		if (this.musicFileList[this.chosenTrackIndex]){
-			if (this.elapsedPlaySeconds > this.musicFileList[this.chosenTrackIndex].duration + 2){
+			if (this.elapsedPlaySeconds > this.musicFileList[this.chosenTrackIndex].duration + this.trackDurationBufffer){
 				this.skipForward()
 			}
 		}
@@ -539,8 +541,9 @@ export default class AudioFilePlayer{
 	private createTrackStatusInfo():string{
 		let info = ''
 		if (this.musicFileList[this.chosenTrackIndex]){
+			const trackDuration = this.musicFileList[this.chosenTrackIndex].duration + this.trackDurationBufffer
 			info = this.musicFileList[this.chosenTrackIndex].name
-			info += `\n ${(this.elapsedPlaySeconds / 60).toFixed(2)} / ${(this.musicFileList[this.chosenTrackIndex].duration / 60).toFixed(2)}`
+			info += `\n ${(this.elapsedPlaySeconds / 60).toFixed(2)} / ${(trackDuration / 60).toFixed(2)}`
 		}else{
 			info = 'load track'
 		}
