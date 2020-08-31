@@ -375,9 +375,9 @@ export default class AudioFilePlayer{
 		this.settingsHaveChangedSinceSave = true
 		//depending on the state control the party
 		if (this.musicIsPlaying) {
-			this.musicSoundInstance.resume()
+			if (this.musicSoundInstance) this.musicSoundInstance.resume()
 		} else {
-			this.musicSoundInstance.pause()
+			if (this.musicSoundInstance) this.musicSoundInstance.pause()
 		}
 	}
 
