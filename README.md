@@ -10,18 +10,19 @@ Music played with this player will be synchronized between all users.
 - spread/rolloff control
 - moderator only controls
 - wrist based remote control for moderators
+  - wrist controls can be moved by grabbing them
 - saved state between sessions and worlds
 - auto plays on entry if thats the way you left it
 
 # How to use - the easy way
-- An instance of this app is running at: ws://167.172.218.76
+- An instance of this app is running at: wss://hellofriend.space
 - Enter this address into an mre sdk app object in your altspace world
-- - you can find the mre in the basic folder of world editor
+  - you can find the mre in the basic folder of world editor
 - paste the link to your shared dropbox folder into the prompt and enjoy
 
-- - note: you can also visit the web page of the server for instructions with pictures http://167.172.218.76
-- - note: be careful about loading very large audio files. they load into the world and will affect everyone while they load
-- - note: the session id in the mre can be used in multiple spaces to get the same playlist
+  - note: you can also visit the web page of the server for instructions with pictures https://hellofriend.space
+  - note: be careful about loading very large audio files. they load into the world and will affect everyone while they load
+  - note: the session id in the mre can be used in multiple spaces to get the same playlist
 
 
 
