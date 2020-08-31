@@ -1,14 +1,15 @@
 This is an MRE app written for AltspaceVR. 
 It is an audio player for your personal files stored in your dropbox folder.
 
-Music played with this player will be synchronized between all users.
 
 # Features
-- basic play/pause/next/volume controls
-- shuffle
+- music played with this player will be synchronized between all users
+- there are no issues with links not working because they are your music files
+- basic play/pause/skip/volume/shuffle
 - auto track advance
 - spread/rolloff control
 - moderator only controls
+  - you're the host. you control the music
 - wrist based remote control for moderators
   - wrist controls can be moved by grabbing them
 - saved state between sessions and worlds
