@@ -1,8 +1,12 @@
+# Hello Friend
 This is an MRE app written for AltspaceVR. 
 It is an audio player for your personal files stored in your dropbox folder.
 
+Your music files must be in **vorbis** format.  The file must end with **.oop**
+There are free converters easily found on the net if you need them.
 
-# Features
+
+## Features
 - music played with this player will be synchronized between all users
 - there are no issues with links not working because they are your music files
 - basic play/pause/skip/volume/shuffle
@@ -15,8 +19,8 @@ It is an audio player for your personal files stored in your dropbox folder.
 - saved state between sessions and worlds
 - auto plays on entry if thats the way you left it
 
-# How to use - the easy way
-- An instance of this app is running at: wss://hellofriend.space
+## How to use - the easy way
+- An instance of this app is running at: **wss://hellofriend.space**
 - Enter this address into an mre sdk app object in your altspace world
   - you can find the mre in the basic folder of world editor
 - paste the link to your shared dropbox folder into the prompt and enjoy
@@ -27,7 +31,7 @@ It is an audio player for your personal files stored in your dropbox folder.
 
 
 
-# Want to setup your own instance of this app?
+## Want to setup your own instance of this app?
 - fyi it is not necessary to do this. if you just want to play music use the easy instructions above
 - clone the project
 - launch your project on a public server such as openode
