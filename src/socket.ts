@@ -43,8 +43,9 @@ export default class SocketServer{
                 this.processDropBoxfolderAndReply(dropBoxfolderUrl, socket, sessionId)
             })
     
-            //when a session playlist is requested find it and deliver it to the client
-            socket.on('getSessionPlaylist', (sessionId:string) => {
+            //when the session state is requested we will attemp to find it in the db
+            //failing that we will return a default state
+            socket.on('getSessionState', (sessionId:string) => {
     
                 this.db.getSessionData(sessionId).then(sessionData => {
                     //if no list is found we wil need to return an empty one

@@ -117,8 +117,9 @@ export default class AudioFilePlayer{
 			}
 		})
 
-		//get a playlist for this session if one exists
-		this.socket.emit("getSessionPlaylist", this.context.sessionId)
+		//get a state for this session if one exists
+		this.socket.emit("getSessionState", this.context.sessionId)
+
 		//when the session data is returned put it to use
 		this.socket.on("deliverSessionState", (sessionData:SessionData) => {
 			this.musicFileList = sessionData.playlist
