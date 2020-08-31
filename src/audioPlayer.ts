@@ -31,12 +31,12 @@ export default class AudioFilePlayer{
 	private settingsSaveIntervalSeconds = 10
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
-	private currentsongIndex = 0
-	private chosenTrackIndex = 0
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
-	private currentMusicAsset : MRE.Sound
 	private shuffledTrackIndicies : number[] = []
+	private currentMusicAsset : MRE.Sound
+	private currentSongIndex = 0
+	private chosenTrackIndex = 0
 
 	private volume = 0.04
 	private spread = 0.4
@@ -123,7 +123,7 @@ export default class AudioFilePlayer{
 			this.volume = sessionData.state.volume
 			this.spread = sessionData.state.spread
 			this.rolloffStartDistance = sessionData.state.rolloffStartDistance
-			this.currentsongIndex = sessionData.state.currentsongIndex
+			this.currentSongIndex = sessionData.state.currentsongIndex
 			this.musicIsPlaying = sessionData.state.musicIsPlaying
 			//any parameters that are added later should be tested for existance
 			this.shuffle = sessionData.state.shuffle ? sessionData.state.shuffle : false
@@ -146,28 +146,15 @@ export default class AudioFilePlayer{
 
 		//default to paused
         if (this.musicSoundInstance) this.musicSoundInstance.pause()
-		
-		//watch for the track duration to elapse. this will allow us to advance to the next song
-		const watchForTrackAutoAdvance = () => {
-			//integrate the elapsed play time
-			if (this.musicIsPlaying) {this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds}
-
-			//if music has been loaded we can check for duration to be elapsed
-			if (this.musicFileList[this.currentsongIndex]){
-				if (this.elapsedPlaySeconds > this.musicFileList[this.currentsongIndex].duration + 2){
-					this.skipForward()
-				}
-			}
-		}
 
 		//start the track advance watch	
-		setInterval(watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
+		setInterval(this.watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
 
 		const saveSessionState = () => {
 			if (this.settingsHaveChangedSinceSave){
 				//packup the settings
 				let state = new SessionState
-				state.currentsongIndex = this.currentsongIndex
+				state.currentsongIndex = this.currentSongIndex
 				state.musicIsPlaying = this.musicIsPlaying
 				state.rolloffStartDistance = this.rolloffStartDistance
 				state.spread = this.spread
@@ -227,6 +214,24 @@ export default class AudioFilePlayer{
 		})
 
 		return true
+	}
+
+
+	/**
+	 * watches for the track duration to elapse. 
+	 * this will allow us to advance to the next song
+	 */
+	private watchForTrackAutoAdvance = () => {
+		//integrate the elapsed play time
+		if (this.musicIsPlaying) this.elapsedPlaySeconds += this.autoAdvanceIntervalSeconds
+		console.log(`elapsed play time: ${this.elapsedPlaySeconds}`)
+
+		//if music has been loaded we can check for duration to be elapsed
+		if (this.musicFileList[this.chosenTrackIndex]){
+			if (this.elapsedPlaySeconds > this.musicFileList[this.chosenTrackIndex].duration + 2){
+				this.skipForward()
+			}
+		}
 	}
 
 	
@@ -388,7 +393,7 @@ export default class AudioFilePlayer{
 	private skipForward(){
 		
 		//increment the song index and roll it over when we get to the end of the list
-		this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
+		this.currentSongIndex = this.currentSongIndex > this.musicFileList.length-2 ? 0 : this.currentSongIndex + 1
 		//mark the sesion settings as changed
 		this.settingsHaveChangedSinceSave = true
 
@@ -401,7 +406,7 @@ export default class AudioFilePlayer{
 	private skipBackward(){
 		
 		//increment the song index and roll it over when we get to the end of the list
-		this.currentsongIndex = this.currentsongIndex < 1 ? this.musicFileList.length-2 : this.currentsongIndex - 1
+		this.currentSongIndex = this.currentSongIndex < 1 ? this.musicFileList.length-2 : this.currentSongIndex - 1
 		//mark the sesion settings as changed
 		this.settingsHaveChangedSinceSave = true
 		
@@ -422,7 +427,7 @@ export default class AudioFilePlayer{
 		this.musicAssetContainer = new MRE.AssetContainer(this.context)
 
 		//if shuffle is selected use that array
-		this.chosenTrackIndex = this.shuffle ? this.shuffledTrackIndicies[this.currentsongIndex] : this.currentsongIndex
+		this.chosenTrackIndex = this.shuffle ? this.shuffledTrackIndicies[this.currentSongIndex] : this.currentSongIndex
 
 		//create the next sound if music has been loaded
 		if (this.musicFileList[this.chosenTrackIndex]){
