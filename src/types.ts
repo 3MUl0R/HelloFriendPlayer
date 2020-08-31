@@ -25,6 +25,7 @@ export class SessionState{
     rolloffStartDistance = 2.5
     musicIsPlaying = false
     currentsongIndex = 0
+    shuffle = false
 }
 
 /**

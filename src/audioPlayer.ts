@@ -32,27 +32,41 @@ export default class AudioFilePlayer{
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
 	private currentsongIndex = 0
+	private chosenTrackIndex = 0
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
 	private currentMusicAsset : MRE.Sound
+	private shuffledTrackIndicies : number[] = []
+
 	private volume = 0.04
 	private spread = 0.4
 	private rolloffStartDistance = 2.5
-	private playStateLabel : MRE.Actor
+	private shuffle = false
+	
 	private playPauseButton : MRE.Actor
-	private wristPlayPauseButtonStorageList : ButtonStorage[] = []
+	private shuffleButton : MRE.Actor
+	
+	private playStateLabel : MRE.Actor
 	private trackNameLabel : MRE.Actor
 	private volumeLabel : MRE.Actor
+	private spreadLabel : MRE.Actor
+	private rolloffLabel : MRE.Actor
+
 	private arrowMesh : MRE.Mesh
 	private squareMesh : MRE.Mesh
+	
 	private stopButtonMaterial : MRE.Material
 	private playButtonMaterial : MRE.Material
 	private generalButtonMaterial : MRE.Material
+	private greyButtonMaterial : MRE.Material
 	private volumeButtonMaterial : MRE.Material
 	private skipButtonMaterial : MRE.Material
+	
+	private wristPlayPauseButtonStorageList : ButtonStorage[] = []
 	private wristControlsRootPose = {pos:{x:0, y:0, z:0.04}, ori:{x:2.325398, y:1.570796, z:0}}
 	private wristControlsScale = 0.2
 	private wristButtonActorsArray : MRE.Actor[] = []
+
 
 	//if streaming is used on files then the audio is not syncd between users
 	private useStreaming = false
@@ -111,10 +125,23 @@ export default class AudioFilePlayer{
 			this.rolloffStartDistance = sessionData.state.rolloffStartDistance
 			this.currentsongIndex = sessionData.state.currentsongIndex
 			this.musicIsPlaying = sessionData.state.musicIsPlaying
+			//any parameters that are added later should be tested for existance
+			this.shuffle = sessionData.state.shuffle ? sessionData.state.shuffle : false
+
 			MRE.log.info('app', `received session data for session: ${this.context.sessionId}: `, sessionData)
+
+			//shuffle the songs if its turned on
+			if (this.shuffle) this.createShuffleList()
 
 			//load the first sound into the object
 			this.loadNextTrack()
+
+			//update the ui with the new settings
+			this.setVolume(0)
+			this.setSpread(0)
+			this.setRolloff(0)
+			this.setMusicStateAppearance()
+			this.updateShuffleButtonAppearance()
 		})
 
 		//default to paused
@@ -145,6 +172,7 @@ export default class AudioFilePlayer{
 				state.rolloffStartDistance = this.rolloffStartDistance
 				state.spread = this.spread
 				state.volume = this.volume
+				state.shuffle = this.shuffle
 	
 				//save to the db
 				this.socket.emit('saveSessionState', this.context.sessionId, state)
@@ -166,31 +194,11 @@ export default class AudioFilePlayer{
 				label: "Volume", action: incr => this.setVolume(incr)
 			},
 			{
-				label: "Spread", action: incr => {
-					if (incr > 0) {
-						this.spread = this.spread >= 0.9 ? 1.0 : this.spread + .1
-					} else if (incr < 0) {
-						this.spread = this.spread <= 0.1 ? 0.0 : this.spread - .1
-					}
-					this.adjustSoundParameters()
-					return Math.floor(this.spread * 100) + "%"
-				}
+				label: "Spread", action: incr => this.setSpread(incr)
 			},
 			{
-				label: "Rolloff", action: incr => {
-					if (incr > 0) {
-						//if we are over 1 use a larger increment value
-						this.rolloffStartDistance += this.rolloffStartDistance > 1 ? 1 : 0.1
-					} else if (incr < 0) {
-						//if we are over 1 use a larger increment value
-						this.rolloffStartDistance -= this.rolloffStartDistance > 1 ? 1 : 0.1
-						//limit it to a minimum value
-						this.rolloffStartDistance = this.rolloffStartDistance < 0.2 ? 0.2 : this.rolloffStartDistance
-                    }
-					this.adjustSoundParameters()
-					return this.rolloffStartDistance.toPrecision(2).toString()
-				}
-			},
+				label: "Rolloff", action: incr => this.setRolloff(incr)
+			}
         ]
         
         //the controls are defined now we have to create them
@@ -208,7 +216,7 @@ export default class AudioFilePlayer{
 				name: 'displayParent',
 				parentId: rootActor.id,
 				appearance:{ enabled: true},
-				transform: { local: { position: { x: 0, y: 0, z: 0 } } }
+				transform: { local: { position: { x: 0, y: 0.1, z: 0 } } }
 			}
 		}))
 
@@ -241,6 +249,44 @@ export default class AudioFilePlayer{
 		this.adjustSoundParameters()
 		//return the value to be used when the label is first created
 		return volumeValue
+	}
+
+	/**
+	 * adjusts the spread and then updates the label
+	 * @param incr 
+	 */
+	private setSpread = (incr:number) => {
+		if (incr > 0) {
+			this.spread = this.spread >= 0.9 ? 1.0 : this.spread + .1
+		} else if (incr < 0) {
+			this.spread = this.spread <= 0.1 ? 0.0 : this.spread - .1
+		}
+		this.adjustSoundParameters()
+		
+		const spreadValue = Math.floor(this.spread * 100) + "%"
+		if (this.spreadLabel) this.spreadLabel.text.contents = spreadValue
+		return spreadValue 
+	}
+
+	/**
+	 * adjusts the rolloff and then updates the label
+	 * @param incr 
+	 */
+	private setRolloff = (incr:number) => {
+		if (incr > 0) {
+			//if we are over 1 use a larger increment value
+			this.rolloffStartDistance += this.rolloffStartDistance > 1 ? 1 : 0.1
+		} else if (incr < 0) {
+			//if we are over 1 use a larger increment value
+			this.rolloffStartDistance -= this.rolloffStartDistance > 1 ? 1 : 0.1
+			//limit it to a minimum value
+			this.rolloffStartDistance = this.rolloffStartDistance < 0.2 ? 0.2 : this.rolloffStartDistance
+		}
+		this.adjustSoundParameters()
+		
+		const rolloffValue = this.rolloffStartDistance.toPrecision(2).toString()
+		if (this.rolloffLabel) this.rolloffLabel.text.contents = rolloffValue
+		return rolloffValue
 	}
 
 	/**
@@ -298,6 +344,24 @@ export default class AudioFilePlayer{
 	}
 
 	/**
+	 * creates a new randomized list of track indicies
+	 */
+	private createShuffleList(){
+		//create an array with all of the current track indicies
+		this.shuffledTrackIndicies = [...Array(this.musicFileList.length).keys()]
+		//loop through the new array and randomly rearrange it
+		for (var i = this.shuffledTrackIndicies.length - 1; i > 0; i--) {
+			var j = Math.floor(Math.random() * (i + 1))
+			var temp = this.shuffledTrackIndicies[i]
+			this.shuffledTrackIndicies[i] = this.shuffledTrackIndicies[j]
+			this.shuffledTrackIndicies[j] = temp
+		}
+
+		//skip to the next track to load somthing from the new list
+		this.skipForward()
+	}
+
+	/**
 	 * toggles the play/pause state of the music
 	 */
 	private startStopTheParty(){
@@ -322,22 +386,26 @@ export default class AudioFilePlayer{
 	 * advance to the next track
 	 */
 	private skipForward(){
+		
 		//increment the song index and roll it over when we get to the end of the list
 		this.currentsongIndex = this.currentsongIndex > this.musicFileList.length-2 ? 0 : this.currentsongIndex + 1
-		this.loadNextTrack()
 		//mark the sesion settings as changed
 		this.settingsHaveChangedSinceSave = true
+
+		this.loadNextTrack()
 	}
 
 	/**
 	 * skip back a track
 	 */
 	private skipBackward(){
+		
 		//increment the song index and roll it over when we get to the end of the list
 		this.currentsongIndex = this.currentsongIndex < 1 ? this.musicFileList.length-2 : this.currentsongIndex - 1
-		this.loadNextTrack()
 		//mark the sesion settings as changed
 		this.settingsHaveChangedSinceSave = true
+		
+		this.loadNextTrack()
 	}
 
 	/**
@@ -353,8 +421,11 @@ export default class AudioFilePlayer{
 		//recreate the asset container to dump the old track
 		this.musicAssetContainer = new MRE.AssetContainer(this.context)
 
+		//if shuffle is selected use that array
+		this.chosenTrackIndex = this.shuffle ? this.shuffledTrackIndicies[this.currentsongIndex] : this.currentsongIndex
+
 		//create the next sound if music has been loaded
-		if (this.musicFileList[this.currentsongIndex]){
+		if (this.musicFileList[this.chosenTrackIndex]){
 
 			if (this.useStreaming){
 				this.createStreamInstance()
@@ -378,8 +449,16 @@ export default class AudioFilePlayer{
 	 * updates the info display label
 	 */
 	private updateTrackInfoLabel = () => {
-		console.log('updateing label')
-		this.trackNameLabel.text.contents = this.createTrackStatusInfo()
+		if (this.trackNameLabel){
+			this.trackNameLabel.text.contents = this.createTrackStatusInfo()
+		}
+	}
+
+	/**
+	 * updates the appearance of the shuffle button
+	 */
+	private updateShuffleButtonAppearance = () => {
+		this.shuffleButton.appearance.materialId = this.shuffle ? this.playButtonMaterial.id : this.greyButtonMaterial.id
 	}
 
 	/**
@@ -406,7 +485,7 @@ export default class AudioFilePlayer{
 	 */
 	private createStreamInstance(){
 		//get the next track and create a video stream from it
-		let file = this.musicFileList[this.currentsongIndex]
+		let file = this.musicFileList[this.chosenTrackIndex]
 		MRE.log.info('app', `${this.context.sessionId} playing next track: `, file)
 		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
 
@@ -431,7 +510,7 @@ export default class AudioFilePlayer{
 	 */
 	private createAudioInstance(){
 		//get the next track and create an mre.sound from it
-		let file = this.musicFileList[this.currentsongIndex]
+		let file = this.musicFileList[this.chosenTrackIndex]
 		
 		MRE.log.info('app', `${this.context.sessionId} playing next track: `, file)
 		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
@@ -454,9 +533,9 @@ export default class AudioFilePlayer{
 	 */
 	private createTrackStatusInfo():string{
 		let info = ''
-		if (this.musicFileList[this.currentsongIndex]){
-			info = this.musicFileList[this.currentsongIndex].name
-			info += `\n ${(this.elapsedPlaySeconds / 60).toFixed(2)} / ${(this.musicFileList[this.currentsongIndex].duration / 60).toFixed(2)}`
+		if (this.musicFileList[this.chosenTrackIndex]){
+			info = this.musicFileList[this.chosenTrackIndex].name
+			info += `\n ${(this.elapsedPlaySeconds / 60).toFixed(2)} / ${(this.musicFileList[this.chosenTrackIndex].duration / 60).toFixed(2)}`
 		}else{
 			info = 'load track'
 		}
@@ -509,6 +588,7 @@ export default class AudioFilePlayer{
 		this.stopButtonMaterial = this.assets.createMaterial('stopButtonMaterial', {color:{a:1,r:1,g:0,b:0}, emissiveColor:{r:1,g:0,b:0}})
 		this.playButtonMaterial = this.assets.createMaterial('playButtonMaterial', {color:{a:1,r:0,g:1,b:0}, emissiveColor:{r:0,g:1,b:0}})
 		this.generalButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:1,r:0,g:115,b:255}, emissiveColor:{r:0,g:115,b:255}})
+		this.greyButtonMaterial = this.assets.createMaterial('generalButtonMaterial', {color:{a:1,r:120,g:120,b:120}, emissiveColor:{r:120,g:120,b:120}})
 		this.volumeButtonMaterial = this.assets.createMaterial('volumeButtonMaterial', {color:{a:1,r:225,g:229,b:0}, emissiveColor:{r:225,g:229,b:0}})
 		this.skipButtonMaterial = this.assets.createMaterial('skipButtonMaterial', {color:{a:1,r:255,g:0,b:133}, emissiveColor:{r:255,g:0,b:133}})
 		const layout = new MRE.PlanarGridLayout(parent)
@@ -607,84 +687,265 @@ export default class AudioFilePlayer{
 		//next row
 		currentLayoutRow ++
 
-		//loop through the controls defined earlier
-		//create buttons and set actions for each of them
-		for (const controlDef of controls) {
-			let label: MRE.Actor, more: MRE.Actor, less: MRE.Actor
-			layout.addCell({
-				row: currentLayoutRow,
-				column: 1,
-				width: 0.6,
-				height: 0.25,
-				contents: label = MRE.Actor.Create(this.context, {
-					actor: {
-						name: `${controlDef.label}-label`,
-						parentId: parent.id,
-						text: {
-							contents: `${controlDef.label}:\n${controlDef.action(0)}`,
-							height: 0.1,
-							anchor: MRE.TextAnchorLocation.MiddleCenter,
-							justify: MRE.TextJustify.Center,
-							color: MRE.Color3.FromInts(255, 200, 255)
-						}
+		//volume controlls
+		//create the volume label
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.6,
+			height: 0.25,
+			contents: this.volumeLabel = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'volumeLabel',
+					parentId: parent.id,
+					text: {
+						contents: this.setVolume(0),
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Center,
+						color: MRE.Color3.FromInts(255, 200, 255)
 					}
-				})
+				}
 			})
-			controlDef.labelActor = label
+		})
 
-			//save the volume label so it can be modified as needed
-			if (controlDef.label == 'Volume') this.volumeLabel = label
+		let vLess: MRE.Actor
 
-			layout.addCell({
-				row: currentLayoutRow,
-				column: 0,
-				width: 0.3,
-				height: 0.25,
-				contents: less = MRE.Actor.Create(this.context, {
-					actor: {
-						name: `${controlDef.label}-less`,
-						parentId: parent.id,
-						appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
-						collider: { geometry: { shape: MRE.ColliderType.Auto } },
-						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: vLess = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'volumeDownButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
+				}
+			})
+		})
+
+		let vMore: MRE.Actor
+
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: vMore = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'volumeUpButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.volumeButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
+				}
+			})
+		})
+
+		vLess.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+			this.setVolume(-1)
+		})
+
+		vMore.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+			this.setVolume(1)
+		})
+
+		//next row
+		currentLayoutRow++
+
+		//spread controls
+		//create the spread label
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.6,
+			height: 0.25,
+			contents: this.spreadLabel = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'spreadLabel',
+					parentId: parent.id,
+					text: {
+						contents: this.setSpread(0),
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Center,
+						color: MRE.Color3.FromInts(255, 200, 255)
 					}
-				})
+				}
 			})
+		})
 
-			layout.addCell({
-				row: currentLayoutRow,
-				column: 2,
-				width: 0.3,
-				height: 0.25,
-				contents: more = MRE.Actor.Create(this.context, {
-					actor: {
-						name: `${controlDef.label}-more`,
-						parentId: parent.id,
-						appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
-						collider: { geometry: { shape: MRE.ColliderType.Auto } },
-						transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
+		let sLess: MRE.Actor
+
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: sLess = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'spreadDownButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
+				}
+			})
+		})
+
+		let sMore: MRE.Actor
+
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: sMore = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'spreadUpButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
+				}
+			})
+		})
+
+		sLess.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+			this.setSpread(-1)
+		})
+
+		sMore.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+			this.setSpread(1)
+		})
+
+		//next row
+		currentLayoutRow++
+
+		//rolloff controls
+		//create the rolloff label
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.6,
+			height: 0.25,
+			contents: this.rolloffLabel = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'rolloffLabel',
+					parentId: parent.id,
+					text: {
+						contents: this.setRolloff(0),
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Center,
+						color: MRE.Color3.FromInts(255, 200, 255)
 					}
-				})
+				}
 			})
+		})
 
-			//if these are the volume buttons assign thier material
-			if (controlDef.label == 'Volume'){
-				less.appearance.materialId = this.volumeButtonMaterial.id
-				more.appearance.materialId = this.volumeButtonMaterial.id
-			}
+		let rLess: MRE.Actor
 
-			less.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
-				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(-1)}`
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: rLess = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'rolloffDownButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, 0) } }
+				}
 			})
+		})
 
-			more.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
-				controlDef.labelActor.text.contents = `${controlDef.label}:\n${controlDef.action(1)}`
+		let rMore: MRE.Actor
+
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 2,
+			width: 0.3,
+			height: 0.25,
+			contents: rMore = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'rolloffUpButton',
+					parentId: parent.id,
+					appearance: { meshId: this.arrowMesh.id, materialId: this.generalButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI) } }
+				}
 			})
+		})
 
-			//next row
-			currentLayoutRow++
-		}
+		rLess.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+			this.setRolloff(-1)
+		})
 
+		rMore.setBehavior(MRE.ButtonBehavior).onButton("pressed", () => {
+			this.setRolloff(1)
+		})
+
+		//next row
+		currentLayoutRow++
+
+		//create a button for shuffle
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: this.shuffleButton = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'shuffleButton',
+					parentId: parent.id,
+					appearance: { meshId: this.squareMesh.id, materialId: this.greyButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		this.shuffleButton.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			//toggle the shuffle state
+			this.shuffle = !this.shuffle
+			//create a new list
+			if (this.shuffle) this.createShuffleList()
+			//set the button appearance
+			this.updateShuffleButtonAppearance()
+			//save the settings change
+			this.settingsHaveChangedSinceSave = true
+		})
+
+		//create a label for the shuffle folder button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.6,
+			height: 0.25,
+			contents: label = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'shuffleLabel',
+					parentId: parent.id,
+					text: {
+						contents: 'Shuffle',
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Right,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
+
+		//next row
+		currentLayoutRow ++
 
 		//create a button for setting a new dropbox folder
 		layout.addCell({
@@ -696,7 +957,7 @@ export default class AudioFilePlayer{
 				actor: {
 					name: 'setNewDropBoxButton',
 					parentId: parent.id,
-					appearance: { meshId: this.squareMesh.id },
+					appearance: { meshId: this.squareMesh.id, materialId: this.greyButtonMaterial.id },
 					collider: { geometry: { shape: MRE.ColliderType.Auto } },
 					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
 				}
@@ -713,7 +974,7 @@ export default class AudioFilePlayer{
 			})
 		})
 
-		//create a label for the set folder button
+		//create a label for the dropbox folder button
 		layout.addCell({
 			row: currentLayoutRow,
 			column: 1,
@@ -747,7 +1008,7 @@ export default class AudioFilePlayer{
 				actor: {
 					name: 'spawnControlsButton',
 					parentId: parent.id,
-					appearance: { meshId: this.squareMesh.id },
+					appearance: { meshId: this.squareMesh.id, materialId: this.greyButtonMaterial.id },
 					collider: { geometry: { shape: MRE.ColliderType.Auto } },
 					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
 				}
