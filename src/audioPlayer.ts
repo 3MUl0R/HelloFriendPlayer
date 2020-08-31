@@ -29,11 +29,11 @@ export default class AudioFilePlayer{
 	private musicSpeaker : MRE.Actor
 	private musicSoundInstance : MRE.MediaInstance
 	private currentMusicAsset : MRE.Sound
-	private shuffledTrackIndicies : number[] = []
+	private shuffledTrackIndices : number[] = []
 
 	private autoAdvanceIntervalSeconds = 1
 	private settingsSaveIntervalSeconds = 10
-	private trackDurationBufffer = 2
+	private trackDurationBuffer = 2
 	private settingsHaveChangedSinceSave = false
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
@@ -71,7 +71,7 @@ export default class AudioFilePlayer{
 	private wristButtonActorsArray : MRE.Actor[] = []
 
 
-	//if streaming is used on files then the audio is not syncd between users
+	//if streaming is used on files then the audio is not synced between users
 	private useStreaming = false
 
 	controls: ControlDefinition[] = []
@@ -129,10 +129,10 @@ export default class AudioFilePlayer{
 			this.rolloffStartDistance = sessionData.state.rolloffStartDistance
 			this.currentSongIndex = sessionData.state.currentsongIndex
 			this.musicIsPlaying = sessionData.state.musicIsPlaying
-			//any parameters that are added later should be tested for existance
+			//any parameters that are added later should be tested for existence
 			this.shuffle = sessionData.state.shuffle ? sessionData.state.shuffle : false
 
-			MRE.log.info('app', `received session data for session: ${this.context.sessionId}: `, sessionData)
+			MRE.log.info('app', `client received session data for session: ${this.context.sessionId}`)
 
 			//shuffle the songs if its turned on
 			if (this.shuffle) this.createShuffleList()
@@ -156,7 +156,7 @@ export default class AudioFilePlayer{
 
 		const saveSessionState = () => {
 			if (this.settingsHaveChangedSinceSave){
-				//packup the settings
+				//pack up the settings
 				let state = new SessionState
 				state.currentsongIndex = this.currentSongIndex
 				state.musicIsPlaying = this.musicIsPlaying
@@ -172,7 +172,7 @@ export default class AudioFilePlayer{
 			}
 		}
 
-		//now that the settings have been loaed from the db 
+		//now that the settings have been loaded from the db 
 		//start the setting save monitor
 		setInterval(saveSessionState, this.settingsSaveIntervalSeconds * 1000)
 
@@ -234,7 +234,7 @@ export default class AudioFilePlayer{
 
 		//if music has been loaded we can check for duration to be elapsed
 		if (this.musicFileList[this.chosenTrackIndex]){
-			if (this.elapsedPlaySeconds > this.musicFileList[this.chosenTrackIndex].duration + this.trackDurationBufffer){
+			if (this.elapsedPlaySeconds > this.musicFileList[this.chosenTrackIndex].duration + this.trackDurationBuffer){
 				this.skipForward()
 			}
 		}
@@ -334,8 +334,8 @@ export default class AudioFilePlayer{
 			this.musicIsPlaying ? Math.PI * 0.25 : Math.PI * 0.5
 		)
 
-		//if the wrist controls have been created then we need to modify them aswell
-		//if the play pause has a custom postion then don't mess with its rotation
+		//if the wrist controls have been created then we need to modify them as well
+		//if the play pause has a custom position then don't mess with its rotation
 		//do this for each of the wrist controls
 		this.wristPlayPauseButtonStorageList.forEach(buttonStored => {
 			if (buttonStored){
@@ -355,20 +355,20 @@ export default class AudioFilePlayer{
 	}
 
 	/**
-	 * creates a new randomized list of track indicies
+	 * creates a new randomized list of track indices
 	 */
 	private createShuffleList(){
-		//create an array with all of the current track indicies
-		this.shuffledTrackIndicies = [...Array(this.musicFileList.length).keys()]
+		//create an array with all of the current track indices
+		this.shuffledTrackIndices = [...Array(this.musicFileList.length).keys()]
 		//loop through the new array and randomly rearrange it
-		for (var i = this.shuffledTrackIndicies.length - 1; i > 0; i--) {
+		for (var i = this.shuffledTrackIndices.length - 1; i > 0; i--) {
 			var j = Math.floor(Math.random() * (i + 1))
-			var temp = this.shuffledTrackIndicies[i]
-			this.shuffledTrackIndicies[i] = this.shuffledTrackIndicies[j]
-			this.shuffledTrackIndicies[j] = temp
+			var temp = this.shuffledTrackIndices[i]
+			this.shuffledTrackIndices[i] = this.shuffledTrackIndices[j]
+			this.shuffledTrackIndices[j] = temp
 		}
 
-		//skip to the next track to load somthing from the new list
+		//skip to the next track to load something from the new list
 		this.skipForward()
 	}
 
@@ -376,7 +376,7 @@ export default class AudioFilePlayer{
 	 * toggles the play/pause state of the music
 	 */
 	private startStopTheParty(){
-		//mark the sesion settings as changed
+		//mark the session settings as changed
 		this.settingsHaveChangedSinceSave = true
 		//depending on the state control the party
 		if (this.musicIsPlaying) {
@@ -400,7 +400,7 @@ export default class AudioFilePlayer{
 		
 		//increment the song index and roll it over when we get to the end of the list
 		this.currentSongIndex = this.currentSongIndex > this.musicFileList.length-2 ? 0 : this.currentSongIndex + 1
-		//mark the sesion settings as changed
+		//mark the session settings as changed
 		this.settingsHaveChangedSinceSave = true
 
 		this.loadNextTrack()
@@ -413,7 +413,7 @@ export default class AudioFilePlayer{
 		
 		//increment the song index and roll it over when we get to the end of the list
 		this.currentSongIndex = this.currentSongIndex < 1 ? this.musicFileList.length-2 : this.currentSongIndex - 1
-		//mark the sesion settings as changed
+		//mark the session settings as changed
 		this.settingsHaveChangedSinceSave = true
 		
 		this.loadNextTrack()
@@ -433,7 +433,7 @@ export default class AudioFilePlayer{
 		this.musicAssetContainer = new MRE.AssetContainer(this.context)
 
 		//if shuffle is selected use that array
-		this.chosenTrackIndex = this.shuffle ? this.shuffledTrackIndicies[this.currentSongIndex] : this.currentSongIndex
+		this.chosenTrackIndex = this.shuffle ? this.shuffledTrackIndices[this.currentSongIndex] : this.currentSongIndex
 
 		//create the next sound if music has been loaded
 		if (this.musicFileList[this.chosenTrackIndex]){
@@ -487,7 +487,7 @@ export default class AudioFilePlayer{
 			)
 		}
 
-		//mark the sesion settings as changed
+		//mark the session settings as changed
 		this.settingsHaveChangedSinceSave = true
 	}
 
@@ -497,9 +497,8 @@ export default class AudioFilePlayer{
 	private createStreamInstance(){
 		//get the next track and create a video stream from it
 		let file = this.musicFileList[this.chosenTrackIndex]
-		MRE.log.info('app', `${this.context.sessionId} playing next track: `, file)
 		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
-
+		
 		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
 			currentMusicAsset.id,
 			{
@@ -511,7 +510,8 @@ export default class AudioFilePlayer{
 				visible: false
 			}
 		)
-
+		
+		MRE.log.info('app', `${this.context.sessionId} playing next track: ${file.name}\n   ${file.url}`)
 		//creating a stream always results in the music playing
 		this.setMusicStateToPlaying()
 	}
@@ -522,8 +522,6 @@ export default class AudioFilePlayer{
 	private createAudioInstance(){
 		//get the next track and create an mre.sound from it
 		let file = this.musicFileList[this.chosenTrackIndex]
-		
-		MRE.log.info('app', `${this.context.sessionId} playing next track: `, file)
 		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
 
 		//save the next sound into the active instance
@@ -537,6 +535,9 @@ export default class AudioFilePlayer{
 				time: this.elapsedPlaySeconds
 			}
 		)
+
+		MRE.log.info('app', `${this.context.sessionId} playing next track: ${file.name} \n ${file.url}`)
+
 	}
 
 	/**
@@ -545,7 +546,7 @@ export default class AudioFilePlayer{
 	private createTrackStatusInfo():string{
 		let info = ''
 		if (this.musicFileList[this.chosenTrackIndex]){
-			const trackDuration = this.musicFileList[this.chosenTrackIndex].duration + this.trackDurationBufffer
+			const trackDuration = this.musicFileList[this.chosenTrackIndex].duration + this.trackDurationBuffer
 			info = this.musicFileList[this.chosenTrackIndex].name
 			info += `\n ${(this.elapsedPlaySeconds / 60).toFixed(2)} / ${(trackDuration / 60).toFixed(2)}`
 		}else{
@@ -699,7 +700,7 @@ export default class AudioFilePlayer{
 		//next row
 		currentLayoutRow ++
 
-		//volume controlls
+		//volume controls
 		//create the volume label
 		layout.addCell({
 			row: currentLayoutRow,
