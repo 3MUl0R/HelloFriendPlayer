@@ -210,10 +210,12 @@ export default class AudioFilePlayer{
 			}
 		}))
 
-		//when the track list is delivered from the server set it as th active list
+		//when a track list is delivered from the server set it as the active list
+		//and load the first track
 		this.socket.on("deliverReadDropBoxfolder", (dropboxFileList:AudioFileInfo[]) => {
 			MRE.log.info('app', "the returned file list: ", dropboxFileList)
 			this.musicFileList = dropboxFileList
+			this.loadNextTrack()
 		})
 
 		return true
@@ -975,7 +977,7 @@ export default class AudioFilePlayer{
 		//set the action for the button
 		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
 			user.prompt("Enter your dropbox folder url", true).then(res => {
-				if (res.submitted) this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
+				if (res.submitted && res.text != '') this.socket.emit('readDropBoxFolder', res.text, user.context.sessionId)
 			})
 			.catch(err => {
 				console.error(err)
