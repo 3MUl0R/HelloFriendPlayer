@@ -24,7 +24,7 @@ export default class DBConnect{
         this.pool.on('connect', (client)=>{ })
         //db error action
         this.pool.on('error', (err, client) => {
-            console.error('db error on idle client', err)
+            MRE.log.error('serverDb', 'db error on idle client', err)
             process.exit(-1)
         })
         //test the connection to the db on startup

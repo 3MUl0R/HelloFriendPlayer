@@ -19,6 +19,7 @@ export default class myApp{
 	private socket : SocketIOClient.Socket
 	private audioPlayer : AudioPlayer
 	protected modsOnly = true
+	private userMap : Map<MRE.Guid, ''> = new Map()
 
 
     /**
@@ -37,9 +38,27 @@ export default class myApp{
 		this.assets = new MRE.AssetContainer(context)
 		
 		//define actions for context events we're interested in
-		this.context.onStarted(() => this.started())
-		this.context.onUserJoined(user => this.userJoined(user))
-		this.context.onUserLeft(user => this.userLeft(user))
+		this.context.onStarted(() => {
+			this.started()
+			MRE.log.info('app', `App started for session ${this.context.sessionId}`)
+		})
+		
+		this.context.onUserJoined(user => {
+			this.userJoined(user)
+			this.userMap.set(user.id, '')
+			MRE.log.info('app', `User joined session ${this.context.sessionId}`)
+		})
+
+		this.context.onUserLeft(user => {
+			this.userLeft(user)
+			this.userMap.delete(user.id)
+			MRE.log.info('app', `User left session ${this.context.sessionId}`)
+			//when the last person leaves kill the music shutdown the party
+			if (this.userMap.size == 0){
+				MRE.log.info('app', `Last user left. Shutting down ${this.context.sessionId}`)
+				this.audioPlayer.cleanup()
+			}
+		})
 		
 	}
 

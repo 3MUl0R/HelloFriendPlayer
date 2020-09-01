@@ -20,7 +20,7 @@ export default class SocketServer{
         //create and start the socket server
         this.io = socketIO()
         this.io.listen( parseInt(process.env.PORT)+1 )
-        //initialze the server functions
+        //initialize the server functions
         this.setup()
     }
 
@@ -34,12 +34,12 @@ export default class SocketServer{
         this.io.on('connection', (socket: SocketIO.Socket) => { 
 
             //log when a client connects
-            MRE.log.info('app', "client connected", socket.client.id)
+            MRE.log.info('server', "client connected", socket.client.id)
     
-            //when a client requests a new dropbox folder url be assigned as thier playlist
-            //logg the request and begin processing the request
+            //when a client requests a new dropbox folder url be assigned as their playlist
+            //log the request and begin processing the request
             socket.on("readDropBoxFolder", (dropBoxfolderUrl, sessionId:string) => {
-                MRE.log.info('app', `getting dropBoxfolder for ${sessionId}: `, dropBoxfolderUrl)
+                MRE.log.info('server', `getting dropBoxfolder for ${sessionId}: `, dropBoxfolderUrl)
                 this.processDropBoxfolderAndReply(dropBoxfolderUrl, socket, sessionId)
             })
     
@@ -65,6 +65,8 @@ export default class SocketServer{
             })
     
         })
+
+        
     }
 
 
@@ -73,7 +75,7 @@ export default class SocketServer{
      * @param url 
      */
     private async parseStream (url:string): Promise<musicMetadata.IAudioMetadata> {
-        MRE.log.info('app', "getting meta for: ", url)
+        MRE.log.info('server', "getting meta for: ", url)
         // Read HTTP headers
         const response:any = await fetch(url); 
         // Extract the content-type
@@ -115,7 +117,7 @@ export default class SocketServer{
         //get rid of any duplicates
         const links = [... new Set(matches)]
         //log all of the links
-        MRE.log.info('app', `${sessionId} links found: `, links)
+        MRE.log.info('server', `${sessionId} links found: `, links)
         //create the array for the file info we will find
         const musicFileInfoArray : AudioFileInfo[] = []
         //pull the metadata for each file and save it to the array
@@ -131,7 +133,7 @@ export default class SocketServer{
             })
         }
         //save the results for next time the user:session starts
-        MRE.log.info('app', `saving playlist for: `, sessionId)
+        MRE.log.info('server', `saving playlist for: `, sessionId)
         this.db.saveNewSessionList(sessionId, musicFileInfoArray)
         //send the final results back to the user
         socket.emit('deliverReadDropBoxFolder', musicFileInfoArray)

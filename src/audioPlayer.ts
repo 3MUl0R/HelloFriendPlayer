@@ -40,6 +40,9 @@ export default class AudioFilePlayer{
 	private currentSongIndex = 0
 	private chosenTrackIndex = 0
 	private loadingNewDropboxFolder = false
+	private trackAdvanceTimer : NodeJS.Timeout
+	private uiUpdateTimer : NodeJS.Timeout
+	private settingsSaveTimer : NodeJS.Timeout
 
 	private volume = 0.04
 	private spread = 0.4
@@ -97,6 +100,10 @@ export default class AudioFilePlayer{
 	 * unload all asset containers
 	 */
 	public cleanup() {
+		this.stopTheParty()
+		clearInterval(this.settingsSaveTimer)
+		clearInterval(this.trackAdvanceTimer)
+		clearInterval(this.settingsSaveTimer)
 		this.assets.unload()
 		this.musicAssetContainer.unload()
 	}
@@ -152,7 +159,7 @@ export default class AudioFilePlayer{
         if (this.musicSoundInstance) this.musicSoundInstance.pause()
 
 		//start the track advance watch	
-		setInterval(this.watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
+		this.trackAdvanceTimer = setInterval(this.watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
 
 		const saveSessionState = () => {
 			if (this.settingsHaveChangedSinceSave){
@@ -174,7 +181,7 @@ export default class AudioFilePlayer{
 
 		//now that the settings have been loaded from the db 
 		//start the setting save monitor
-		setInterval(saveSessionState, this.settingsSaveIntervalSeconds * 1000)
+		this.settingsSaveTimer = setInterval(saveSessionState, this.settingsSaveIntervalSeconds * 1000)
 
 
 		//define controls for the stream
@@ -387,6 +394,16 @@ export default class AudioFilePlayer{
 	}
 
 	/**
+	 * stops the music
+	 */
+	private stopTheParty(){
+		//depending on the state control the party
+		if (this.musicSoundInstance) this.musicSoundInstance.stop()
+		this.musicIsPlaying = false
+		this.setMusicStateAppearance()
+	}
+
+	/**
 	 * a get function for the play state
 	 */
 	private getPlayStateAsString(){
@@ -585,7 +602,7 @@ export default class AudioFilePlayer{
 		})
 
 		//now that the display has been created we can update it regularly 
-		setInterval(this.updateTrackInfoLabel, 1000)
+		this.uiUpdateTimer = setInterval(this.updateTrackInfoLabel, 1000)
 	}
 
 	
