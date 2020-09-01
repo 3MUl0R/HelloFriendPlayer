@@ -25,9 +25,8 @@ There are free converters easily found on the net if you need them.
   - you can find the mre in the basic folder of world editor
 - paste the link to your shared dropbox folder into the prompt and enjoy
 
-  - note: you can also visit the web page of the server for instructions with pictures https://hellofriend.space
-  - note: be careful about loading very large audio files. they load into the world and will affect everyone while they load
-  - note: the session id in the mre can be used in multiple spaces to get the same playlist
+  - **note**: you can also visit the web page of the server for instructions with pictures https://hellofriend.space
+  - **note**: be careful about loading very large audio files. they load into the world and will affect everyone while they load
 
 
 
