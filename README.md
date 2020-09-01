@@ -2,7 +2,7 @@
 This is an MRE app written for AltspaceVR. 
 It is an audio player for your personal files stored in your dropbox folder.
 
-Your music files must be in **vorbis** format.  The file must end with **.oop**
+Your music files must be in **vorbis** format.  The file must end with **.ogg**
 There are free converters easily found on the net if you need them.
 
 
