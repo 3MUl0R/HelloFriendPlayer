@@ -11,7 +11,6 @@ import fs from 'fs'
 import App from './app'
 import { DefaultEnv } from './types'
 import SocketServer from './socket'
-import { Permissions } from '@microsoft/mixed-reality-extension-sdk'
 
 
 //if the .env configuration file doesn't exist create it using defaults
@@ -56,7 +55,7 @@ async function runApp() {
 		baseUrl: `${process.env.BASE_URL}:${parseInt(process.env.PORT)}`,
 		baseDir: resolvePath(__dirname, '../public'),
 		port: (process.env.PORT),
-		permissions: [Permissions.UserInteraction, Permissions.UserTracking]
+		permissions: [MRE.Permissions.UserInteraction, MRE.Permissions.UserTracking]
 	})
 
 	MRE.log.info('app', "server started: ", server)
