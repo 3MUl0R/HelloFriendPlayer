@@ -4,8 +4,9 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
-import AudioPlayer from './audioPlayer'
 import socketIO from "socket.io-client"
+
+import AudioPlayer from './audioPlayer'
 
 
 
@@ -44,20 +45,15 @@ export default class myApp{
 		})
 		
 		this.context.onUserJoined(user => {
-			this.userJoined(user)
 			this.userMap.set(user.id, '')
+			this.userJoined(user)
 			MRE.log.info('app', `User joined session ${this.context.sessionId}`)
 		})
 
 		this.context.onUserLeft(user => {
-			this.userLeft(user)
 			this.userMap.delete(user.id)
+			this.userLeft(user)
 			MRE.log.info('app', `User left session ${this.context.sessionId}`)
-			//when the last person leaves kill the music shutdown the party
-			if (this.userMap.size == 0){
-				MRE.log.info('app', `Last user left. Shutting down ${this.context.sessionId}`)
-				this.audioPlayer.cleanup()
-			}
 		})
 		
 	}
@@ -103,6 +99,12 @@ export default class myApp{
 	 */
 	private userLeft(user: MRE.User){
 		this.audioPlayer.cleanUpUserAttachments(user)
+
+		//when the last person leaves kill the music shutdown the party
+		if (this.userMap.size == 0){
+			MRE.log.info('app', `Last user left. Shutting down ${this.context.sessionId}`)
+			this.audioPlayer.cleanup()
+		}
 	}
 	
 	/**
