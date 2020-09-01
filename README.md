@@ -1,6 +1,5 @@
 # Hello Friend
-This is an MRE app written for AltspaceVR. 
-It is an audio player for your personal files stored in your dropbox folder.
+This is an audio player for your personal files stored in your dropbox folder specifically for use in AltspaceVR.
 
 Your music files must be in **vorbis** format.  The file must end with **.ogg**
 There are free converters easily found on the net if you need them.
@@ -21,7 +20,7 @@ There are free converters easily found on the net if you need them.
 
 ## How to use - the easy way
 - An instance of this app is running at: **wss://hellofriend.space**
-- Enter this address into an mre sdk app object in your altspace world
+- Enter this address into an mre sdk app object in your Altspace world
   - you can find the mre in the basic folder of world editor
 - paste the link to your shared dropbox folder into the prompt and enjoy
 
