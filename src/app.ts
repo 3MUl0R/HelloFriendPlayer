@@ -41,19 +41,25 @@ export default class myApp{
 		//define actions for context events we're interested in
 		this.context.onStarted(() => {
 			this.started()
-			MRE.log.info('app', `App started for session ${this.context.sessionId}`)
+			MRE.log.info('app', `App started for session ${this.context.sessionId} at ${Date.now()}`)
 		})
 		
 		this.context.onUserJoined(user => {
 			this.userMap.set(user.id, '')
 			this.userJoined(user)
-			MRE.log.info('app', `User joined session ${this.context.sessionId}`)
+			MRE.log.info('app', `User joined session ${this.context.sessionId} at ${Date.now()}`)
 		})
 
 		this.context.onUserLeft(user => {
 			this.userMap.delete(user.id)
 			this.userLeft(user)
-			MRE.log.info('app', `User left session ${this.context.sessionId}`)
+			MRE.log.info('app', `User left session ${this.context.sessionId} at ${Date.now()}`)
+		})
+
+		this.context.onStopped(() => {
+			//when the instance is stopped clean up running processes such as interval timers
+			this.audioPlayer.cleanup()
+			MRE.log.info('app', `${this.context.sessionId} stopped at ${Date.now()}`)
 		})
 		
 	}
@@ -99,12 +105,6 @@ export default class myApp{
 	 */
 	private userLeft(user: MRE.User){
 		this.audioPlayer.cleanUpUserAttachments(user)
-
-		//when the last person leaves kill the music shutdown the party
-		if (this.userMap.size == 0){
-			MRE.log.info('app', `Last user left. Shutting down ${this.context.sessionId}`)
-			this.audioPlayer.cleanup()
-		}
 	}
 	
 	/**
