@@ -549,7 +549,8 @@ export default class AudioFilePlayer{
 				looping: false,
 				spread: this.spread,
 				rolloffStartDistance: this.rolloffStartDistance,
-				time: this.elapsedPlaySeconds
+				time: this.elapsedPlaySeconds,
+				doppler: 0
 			}
 		)
 
