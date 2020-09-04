@@ -75,11 +75,13 @@ export default class DBConnect{
         if (!res.rows[0]) {
             let text = 'INSERT INTO sessiondata (sessionid, playlistjson) VALUES ($1, $2)'
             const res = await this.pool.query(text, values)
+            MRE.log.info('db', `saving playlist for ${sessionId} with ${musicFileList.length} tracks`)
 
         //else update the existing row
         }else{
             let text = 'UPDATE sessiondata SET playlistjson = $2 WHERE sessionid = $1'
             const res = await this.pool.query(text, values)
+            MRE.log.info('db', `updating playlist for ${sessionId} to new list with ${musicFileList.length} tracks`)
 
         }
     }
@@ -90,6 +92,8 @@ export default class DBConnect{
      * @param state 
      */
     async saveSessionState(sessionId:string, state:SessionState){
+
+        MRE.log.info('db', `saving session state for ${sessionId}: ${state}`)
 
         //first we check to see if an entry exists
         let text = 'select * from sessiondata WHERE sessionid = $1'
