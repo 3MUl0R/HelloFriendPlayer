@@ -75,7 +75,7 @@ export default class AudioFilePlayer{
 
 
 	//if streaming is used on files then the audio is not synced between users
-	private useStreaming = true
+	private useStreaming = false
 
 	controls: ControlDefinition[] = []
 	prompt : Prompt
@@ -516,7 +516,6 @@ export default class AudioFilePlayer{
 		let file = this.musicFileList[this.chosenTrackIndex]
 		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
 		
-		console.log("starting song at ", this.elapsedPlaySeconds)
 		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
 			currentMusicAsset.id,
 			{
