@@ -75,7 +75,7 @@ export default class AudioFilePlayer{
 
 
 	//if streaming is used on files then the audio is not synced between users
-	private useStreaming = false
+	private useStreaming = true
 
 	controls: ControlDefinition[] = []
 	prompt : Prompt
