@@ -47,6 +47,7 @@ export default class myApp{
 		this.context.onUserJoined(user => {
 			this.userMap.set(user.id, '')
 			this.userJoined(user)
+			this.audioPlayer.newUserJoined(user)
 			MRE.log.info('app', `User joined session ${this.context.sessionId} at ${Date.now()}`)
 		})
 

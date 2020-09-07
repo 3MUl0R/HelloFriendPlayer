@@ -4,7 +4,9 @@
  */
 
 import * as MRE from '@microsoft/mixed-reality-extension-sdk'
+import { MreArgumentError } from '@microsoft/mixed-reality-extension-sdk'
 import Prompt from './prompt'
+import { SoundManager } from './soundManager'
 import AudioFileInfo, { ButtonStorage, SessionData, SessionState } from './types'
 
 
@@ -26,10 +28,11 @@ export default class AudioFilePlayer{
 	protected modsOnly = true
 	private assets: MRE.AssetContainer
 	private musicAssetContainer: MRE.AssetContainer
-	private musicSpeaker : MRE.Actor
-	private musicSoundInstance : MRE.MediaInstance
+	private rootActor : MRE.Actor
 	private currentMusicAsset : MRE.Sound
+	private currentStreamAsset : MRE.VideoStream
 	private shuffledTrackIndices : number[] = []
+	private soundManager : SoundManager
 
 	private autoAdvanceIntervalSeconds = 1
 	private settingsSaveIntervalSeconds = 10
@@ -89,11 +92,13 @@ export default class AudioFilePlayer{
 	 * @param musicFileList
      */
 	constructor(
-			private context: MRE.Context, 
-			private socket: SocketIOClient.Socket, 
-			private musicFileList: AudioFileInfo[] = []
+		private context: MRE.Context, 
+		private socket: SocketIOClient.Socket, 
+		private musicFileList: AudioFileInfo[] = []
 		){
 
+		this.soundManager = new SoundManager(this.context)
+	
     }
 
 	/**
@@ -113,17 +118,10 @@ export default class AudioFilePlayer{
      * @param rootActor 
      */
 	public async run(rootActor: MRE.Actor): Promise<boolean> {
-
+		this.rootActor = rootActor
 		this.prompt = new Prompt(this.context)
 		this.assets = new MRE.AssetContainer(this.context)
 		this.musicAssetContainer = new MRE.AssetContainer(this.context)
-
-		this.musicSpeaker = MRE.Actor.Create(this.context, {
-			actor: {
-				name: `TheSoundSpeaker`,
-				parentId: rootActor.id,
-			}
-		})
 
 		//get a state for this session if one exists
 		this.socket.emit("getSessionState", this.context.sessionId)
@@ -156,7 +154,8 @@ export default class AudioFilePlayer{
 		})
 
 		//default to paused
-        if (this.musicSoundInstance) this.musicSoundInstance.pause()
+		// if (this.musicSoundInstance) this.musicSoundInstance.pause()
+		this.soundManager.pause()
 
 		//start the track advance watch	
 		this.trackAdvanceTimer = setInterval(this.watchForTrackAutoAdvance, this.autoAdvanceIntervalSeconds * 1000)	
@@ -228,6 +227,24 @@ export default class AudioFilePlayer{
 		})
 
 		return true
+	}
+
+
+	/**
+	 * call to create a player instance for the new user and add them to the party
+	 * @param user 
+	 */
+	newUserJoined(user:MRE.User){
+		this.soundManager.createStreamForUser(
+			user,
+			this.rootActor,
+			this.currentStreamAsset.id,
+			this.volume,
+			this.spread,
+			this.rolloffStartDistance,
+			this.elapsedPlaySeconds,
+			this.musicIsPlaying
+		)
 	}
 
 
@@ -387,9 +404,9 @@ export default class AudioFilePlayer{
 		this.settingsHaveChangedSinceSave = true
 		//depending on the state control the party
 		if (this.musicIsPlaying) {
-			if (this.musicSoundInstance) this.musicSoundInstance.resume()
+			this.soundManager.resume()
 		} else {
-			if (this.musicSoundInstance) this.musicSoundInstance.pause()
+			this.soundManager.pause()
 		}
 	}
 
@@ -398,7 +415,7 @@ export default class AudioFilePlayer{
 	 */
 	private stopTheParty(){
 		//depending on the state control the party
-		if (this.musicSoundInstance) this.musicSoundInstance.stop()
+		this.soundManager.stop()
 		this.musicIsPlaying = false
 		this.setMusicStateAppearance()
 	}
@@ -444,7 +461,7 @@ export default class AudioFilePlayer{
 		this.elapsedPlaySeconds = 0
 
 		//if the current sound exists stop it 
-		if (this.musicSoundInstance) this.musicSoundInstance.stop()
+		this.soundManager.stop()
 
 		//recreate the asset container to dump the old track
 		this.musicAssetContainer = new MRE.AssetContainer(this.context)
@@ -454,17 +471,12 @@ export default class AudioFilePlayer{
 
 		//create the next sound if music has been loaded
 		if (this.musicFileList[this.chosenTrackIndex]){
-
-			if (this.useStreaming){
-				this.createStreamInstance()
-			}else{
-				this.createAudioInstance()
-			}
+			this.createStreamInstance()
 
 			//Leave the music in the same state
 			//if it wasn't marked as playing then stop the newly loaded song
 			if (!this.musicIsPlaying) {
-				this.musicSoundInstance.pause()
+				this.soundManager.pause()
 			}
 
 		}
@@ -493,16 +505,8 @@ export default class AudioFilePlayer{
 	 * use to adjust the state of the currently playing sound
 	 */
 	private adjustSoundParameters(){
-		if (this.musicSoundInstance){
-			this.musicSoundInstance.setState(
-				{
-					volume: this.volume,
-					looping: false,
-					spread: this.spread,
-					rolloffStartDistance: this.rolloffStartDistance
-				}
-			)
-		}
+		
+		this.soundManager.setState(this.volume, this.spread, this.rolloffStartDistance)
 
 		//mark the session settings as changed
 		this.settingsHaveChangedSinceSave = true
@@ -514,18 +518,14 @@ export default class AudioFilePlayer{
 	private createStreamInstance(){
 		//get the next track and create a video stream from it
 		let file = this.musicFileList[this.chosenTrackIndex]
-		const currentMusicAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
+		this.currentStreamAsset = this.musicAssetContainer.createVideoStream(file.name, { uri: file.url})
 		
-		this.musicSoundInstance = this.musicSpeaker.startVideoStream(
-			currentMusicAsset.id,
-			{
-				volume: this.volume,
-				looping: false,
-				spread: this.spread,
-				rolloffStartDistance: this.rolloffStartDistance,
-				time: this.elapsedPlaySeconds,
-				visible: false
-			}
+		this.soundManager.startNewStreamForAllUsers(
+			this.currentStreamAsset.id, 
+			this.volume, 
+			this.spread, 
+			this.rolloffStartDistance, 
+			this.elapsedPlaySeconds
 		)
 		
 		MRE.log.info('client', `${this.context.sessionId} playing next track: ${file.name}\n -- ${file.url}`)
@@ -533,31 +533,7 @@ export default class AudioFilePlayer{
 		this.setMusicStateToPlaying()
 	}
 
-	/**
-	 * use to create a file based audio object
-	 */
-	private createAudioInstance(){
-		//get the next track and create an mre.sound from it
-		let file = this.musicFileList[this.chosenTrackIndex]
-		this.currentMusicAsset = this.musicAssetContainer.createSound(file.name, { uri: file.url})
-
-		//save the next sound into the active instance
-		this.musicSoundInstance = this.musicSpeaker.startSound(
-			this.currentMusicAsset.id,
-			{
-				volume: this.volume,
-				looping: false,
-				spread: this.spread,
-				rolloffStartDistance: this.rolloffStartDistance,
-				time: this.elapsedPlaySeconds,
-				doppler: 0
-			}
-		)
-
-		MRE.log.info('client', `${this.context.sessionId} playing next track: ${file.name} \n -- ${file.url}`)
-
-	}
-
+	
 	/**
 	 * formats the current name and playtime info for the current track
 	 */
