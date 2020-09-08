@@ -42,6 +42,7 @@ export class SoundManager{
         })
     }
 
+    
     /**
      * set the sound state for all instances
      * @param volume 
