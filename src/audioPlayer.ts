@@ -36,7 +36,7 @@ export default class AudioFilePlayer{
 
 	private autoAdvanceIntervalSeconds = 1
 	private settingsSaveIntervalSeconds = 10
-	private trackDurationBuffer = 2
+	private trackDurationBuffer = 6
 	private settingsHaveChangedSinceSave = false
 	private musicIsPlaying = false
 	private elapsedPlaySeconds = 0
