@@ -238,7 +238,7 @@ export default class AudioFilePlayer{
 		this.soundManager.createStreamForUser(
 			user,
 			this.rootActor,
-			this.currentStreamAsset.id,
+			this.currentStreamAsset ? this.currentMusicAsset.id : undefined,
 			this.volume,
 			this.spread,
 			this.rolloffStartDistance,

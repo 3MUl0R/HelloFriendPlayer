@@ -5,7 +5,7 @@ import * as MRE from '@microsoft/mixed-reality-extension-sdk'
 
 export class SoundManager{
 
-    private userMediaMap : Map<MRE.Guid, UserMedia>
+    private userMediaMap : Map<MRE.Guid, UserMedia> = new Map
 
     /**
      * create a new manager
@@ -19,21 +19,27 @@ export class SoundManager{
      * stop the music for all instances
      */
     stop(){
-        this.userMediaMap.forEach(mediaSet => mediaSet.mediaInstance.stop())
+        this.userMediaMap.forEach(mediaSet => {
+            if (mediaSet.mediaInstance) mediaSet.mediaInstance.stop()
+        })
     }
 
     /**
      * pause the music for all instances
      */
     pause(){
-        this.userMediaMap.forEach(mediaSet => mediaSet.mediaInstance.pause())
+        this.userMediaMap.forEach(mediaSet => {
+            if (mediaSet.mediaInstance) mediaSet.mediaInstance.pause()
+        })
     }
 
     /**
      * resume the music for all instances
      */
     resume(){
-        this.userMediaMap.forEach(mediaSet => mediaSet.mediaInstance.resume())
+        this.userMediaMap.forEach(mediaSet => {
+            if (mediaSet.mediaInstance) mediaSet.mediaInstance.resume()
+        })
     }
 
     /**
@@ -44,12 +50,14 @@ export class SoundManager{
      */
     setState(volume:number, spread:number, rolloffStartDistance:number){
         this.userMediaMap.forEach(mediaSet => {
-            mediaSet.mediaInstance.setState({
-                volume: volume,
-                looping: false,
-                spread: spread,
-                rolloffStartDistance: rolloffStartDistance
-            })
+            if (mediaSet.mediaInstance){
+                mediaSet.mediaInstance.setState({
+                    volume: volume,
+                    looping: false,
+                    spread: spread,
+                    rolloffStartDistance: rolloffStartDistance
+                })
+            }
         })
     }
 
@@ -102,21 +110,28 @@ export class SoundManager{
 			}
         })
         
-        //create and start the stream
-        const newMediaInstance = newSpeaker.startVideoStream(
-            musicAssetId,
-            {
-                volume: volume,
-                looping: false,
-                spread: spread,
-                rolloffStartDistance: rolloffStartDistance,
-                time: startTime,
-                visible: false
-            }
-        )
+        var newMediaInstance : MRE.MediaInstance
+        //create and start the stream if a music asset has been loaded
+        if (musicAssetId){
+            newMediaInstance = newSpeaker.startVideoStream(
+                musicAssetId,
+                {
+                    volume: volume,
+                    looping: false,
+                    spread: spread,
+                    rolloffStartDistance: rolloffStartDistance,
+                    time: startTime,
+                    visible: false
+                }
+            )
+    
+            //if the music isn't playing then stop it for this user
+            if (!musicIsPlaying) newMediaInstance.pause()
+            
+        }else{
+            newMediaInstance = undefined
+        }
 
-        //if the music isn't playing then stop it for this user
-        if (!musicIsPlaying) newMediaInstance.pause()
 
         //save the users media instances
         this.userMediaMap.set(user.id, new UserMedia(user, newSpeaker, newMediaInstance))
