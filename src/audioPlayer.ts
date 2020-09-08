@@ -995,7 +995,7 @@ export default class AudioFilePlayer{
 					name: 'setNewDropBoxLabel',
 					parentId: parent.id,
 					text: {
-						contents: '       Set dropbox folder',
+						contents: '       Get dropbox links',
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Right,
