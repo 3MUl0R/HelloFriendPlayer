@@ -7,6 +7,9 @@ There are free converters easily found on the net if you need them.
 
 ## Features
 - music played with this player will be synchronized between all users
+- you can import folders of up to 30 files
+  - you can import as many folders as you want but only 30 files from each one
+  - if you have a large library just split it into folders
 - there are no issues with links not working because they are your music files
 - basic play/pause/skip/volume/shuffle
 - auto track advance
@@ -25,7 +28,7 @@ There are free converters easily found on the net if you need them.
 - paste the link to your shared dropbox folder into the prompt and enjoy
 
   - **note**: you can also visit the web page of the server for instructions with pictures https://hellofriend.space
-  - **note**: be careful about loading very large audio files. they load into the world and will affect everyone while they load
+  - **note**: be careful about loading very large audio files. 5mb is a decent target size. they load into the world and will affect everyone while they load
 
 
 
