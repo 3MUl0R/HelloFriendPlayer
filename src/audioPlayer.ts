@@ -1023,7 +1023,7 @@ export default class AudioFilePlayer{
 					name: 'setNewDropBoxLabel',
 					parentId: parent.id,
 					text: {
-						contents: '       Add dropbox folder',
+						contents: '         Add dropbox folder',
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Right,
@@ -1124,7 +1124,7 @@ export default class AudioFilePlayer{
 					name: 'spawnWristControlsLabel',
 					parentId: parent.id,
 					text: {
-						contents: '            Spawn Wrist Controls',
+						contents: '             Spawn Wrist Controls',
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Right,

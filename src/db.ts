@@ -124,7 +124,7 @@ export default class DBConnect{
      */
     async saveSessionState(sessionId:string, state:SessionState){
 
-        MRE.log.info('app', `saving session state for ${sessionId}: ${state}`)
+        MRE.log.info('app', `saving session state for ${sessionId}: `, state)
 
         //first we check to see if an entry exists
         let text = 'select * from sessiondata WHERE sessionid = $1'
