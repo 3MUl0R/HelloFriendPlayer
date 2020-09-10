@@ -24,7 +24,7 @@ export default class DBConnect{
         this.pool.on('connect', (client)=>{ })
         //db error action
         this.pool.on('error', (err, client) => {
-            MRE.log.error('serverDb', 'db error on idle client', err)
+            MRE.log.error('app', 'db error on idle client', err)
             process.exit(-1)
         })
         //test the connection to the db on startup
@@ -75,16 +75,47 @@ export default class DBConnect{
         if (!res.rows[0]) {
             let text = 'INSERT INTO sessiondata (sessionid, playlistjson) VALUES ($1, $2)'
             const res = await this.pool.query(text, values)
-            MRE.log.info('db', `saving playlist for ${sessionId} with ${musicFileList.length} tracks`)
+            MRE.log.info('app', `saving playlist for ${sessionId} with ${musicFileList.length} tracks`)
 
         //else update the existing row
         }else{
             let text = 'UPDATE sessiondata SET playlistjson = $2 WHERE sessionid = $1'
             const res = await this.pool.query(text, values)
-            MRE.log.info('db', `updating playlist for ${sessionId} to new list with ${musicFileList.length} tracks`)
+            MRE.log.info('app', `updating playlist for ${sessionId} to new list with ${musicFileList.length} tracks`)
 
         }
     }
+
+
+
+    /**
+     * clear playlist for session
+     * @param sessionId 
+     */
+     async clearSessionPlaylist(sessionId:string){
+        //first we check to see if an entry exists
+        let text = 'select * from sessiondata WHERE sessionid = $1'
+        let values = [sessionId]
+        const res = await this.pool.query(text, values)
+
+        //set the values for the insert or update
+        values = [sessionId, JSON.stringify([]) ]
+        //if the select didn't find anything then we do an insert
+        if (!res.rows[0]) {
+            let text = 'INSERT INTO sessiondata (sessionid, playlistjson) VALUES ($1, $2)'
+            const res = await this.pool.query(text, values)
+            MRE.log.info('app', `clearing playlist for ${sessionId}`)
+
+        //else update the existing row
+        }else{
+            let text = 'UPDATE sessiondata SET playlistjson = $2 WHERE sessionid = $1'
+            const res = await this.pool.query(text, values)
+            MRE.log.info('app', `clearing playlist for ${sessionId} t`)
+
+        }
+    }
+
+
 
     /**
      * save session settings to the db
@@ -93,7 +124,7 @@ export default class DBConnect{
      */
     async saveSessionState(sessionId:string, state:SessionState){
 
-        MRE.log.info('db', `saving session state for ${sessionId}: ${state}`)
+        MRE.log.info('app', `saving session state for ${sessionId}: ${state}`)
 
         //first we check to see if an entry exists
         let text = 'select * from sessiondata WHERE sessionid = $1'

@@ -131,6 +131,7 @@ export default class AudioFilePlayer{
 		//when the session data is returned put it to use
 		this.socket.on("deliverSessionState", (sessionData:SessionData) => {
 			this.musicFileList = sessionData.playlist
+			MRE.log.info('client', `Session ${this.context.sessionId} received ${this.musicFileList.length} tracks`)
 			this.volume = sessionData.state.volume
 			this.spread = sessionData.state.spread
 			this.rolloffStartDistance = sessionData.state.rolloffStartDistance
@@ -221,10 +222,13 @@ export default class AudioFilePlayer{
 		//when a track list is delivered from the server set it as the active list
 		//and load the first track
 		this.socket.on("deliverReadDropBoxFolder", (dropboxFileList:AudioFileInfo[]) => {
-			MRE.log.info('client', "the returned file list: ", dropboxFileList)
-			this.musicFileList = dropboxFileList
+			MRE.log.info('client', "the returned read file list: ", dropboxFileList)
+			this.musicFileList = this.musicFileList.concat(dropboxFileList)
 			this.loadNextTrack()
 			this.loadingNewDropboxFolder = false
+
+			//save the combined playlist 
+			this.socket.emit("savePlaylist", this.context.sessionId, this.musicFileList)
 		})
 
 		return true
@@ -1019,7 +1023,62 @@ export default class AudioFilePlayer{
 					name: 'setNewDropBoxLabel',
 					parentId: parent.id,
 					text: {
-						contents: '       Set dropbox folder',
+						contents: '       Add dropbox folder',
+						height: 0.1,
+						anchor: MRE.TextAnchorLocation.MiddleCenter,
+						justify: MRE.TextJustify.Right,
+						color: MRE.Color3.FromInts(255, 200, 255)
+					}
+				}
+			})
+		})
+
+		//next row
+		currentLayoutRow ++
+
+		//create a button for clearing your playlist
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 0,
+			width: 0.3,
+			height: 0.25,
+			contents: button = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'clearPlaylistButton',
+					parentId: parent.id,
+					appearance: { meshId: this.squareMesh.id, materialId: this.greyButtonMaterial.id },
+					collider: { geometry: { shape: MRE.ColliderType.Auto } },
+					transform: { local: { rotation: MRE.Quaternion.FromEulerAngles(0, 0, Math.PI * 1.5) } }
+				}
+			})
+		})
+
+		//set the action for the button
+		button.setBehavior(MRE.ButtonBehavior).onButton("pressed", (user) => {
+			user.prompt("Enter 'delete' to clear your playlist", true).then(res => {
+				if (res.submitted && res.text == 'delete') {
+					this.socket.emit('clearPlaylistForSession', user.context.sessionId)
+					this.musicFileList = []
+					this.updateTrackInfoLabel()
+				}
+			})
+			.catch(err => {
+				console.error(err)
+			})
+		})
+
+		//create a label for the clear playlist button
+		layout.addCell({
+			row: currentLayoutRow,
+			column: 1,
+			width: 0.3,
+			height: 0.25,
+			contents: label = MRE.Actor.Create(this.context, {
+				actor: {
+					name: 'clearPlaylistLabel',
+					parentId: parent.id,
+					text: {
+						contents: '       Clear your playlist',
 						height: 0.1,
 						anchor: MRE.TextAnchorLocation.MiddleCenter,
 						justify: MRE.TextJustify.Right,
