@@ -125,7 +125,7 @@ export default class SocketServer{
         //pull the page from the provided url
         const response = await got(url as string)
         //create the regex to match the file links
-        const regex = /(https:\/\/www.dropbox\.com\/sh[a-zA-Z0-9%-?_]*(\.ogg))/gm
+        const regex = /(https:\/\/www\.dropbox\.com\/[a-zA-Z0-9%-?_]*(\.ogg))/gm
         //pull all the links from the body
         const matches = response.body.match(regex)
         //get rid of any duplicates
